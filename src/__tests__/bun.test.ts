@@ -1,7 +1,7 @@
-import type { SQL, SQLQuery } from "bun";
 import { randomUUID } from "node:crypto";
+import type { SQL, SQLQuery } from "bun";
 
-import { paginate, type PaginateResult } from "../index.ts";
+import { type PaginateResult, paginate } from "../index.ts";
 import { paginationTestData } from "./helpers.ts";
 
 if ("bun" in process.versions) {
