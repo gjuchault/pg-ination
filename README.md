@@ -1,77 +1,74 @@
-# TypeScript Library Starter
+# pg-ination
 
-![NPM](https://img.shields.io/npm/l/@gjuchault/typescript-library-starter)
-![NPM](https://img.shields.io/npm/v/@gjuchault/typescript-library-starter)
-![GitHub Workflow Status](https://github.com/gjuchault/typescript-library-starter/actions/workflows/typescript-library-starter.yml/badge.svg?branch=main)
+![NPM](https://img.shields.io/npm/l/pg-ination)
+![NPM](https://img.shields.io/npm/v/pg-ination)
+![GitHub Workflow Status](https://github.com/gjuchault/pg-ination/actions/workflows/pg-ination.yml/badge.svg?branch=main)
 
-Yet another (opinionated) TypeScript library starter template.
+A utility to have arbitrary ordering with cursor based pagination, as well as next and previous page checks
 
-If you're looking for a backend service starter, check out my [typescript-service-starter](https://github.com/gjuchault/typescript-service-starter)
+## Options
 
-## Opinions and limitations
+```ts
+interface PaginateOptions<Sql, SqlIdentifier> {
+  /**
+   * the table where your data lives
+   */
+  tableName: string;
+  /**
+   * the user cursor input, can be either { after: string }, { before: string } or undefined
+   */
+  pagination?: { after: string } | { before: string } | undefined;
+  /**
+   * the user ordering input, can be either { column: string, order: "asc" | "desc" } or undefined
+   */
+  orderBy?: { column: string; order: "asc" | "desc" } | undefined;
+  /**
+   * a function used to create a fragment out of an identifier (table names or columns)
+   */
+  identifier: (column: string) => SqlIdentifier;
+  /**
+   * a template literal function used to create a fragment out of a query
+   */
+  fragment: Sql;
+}
+```
 
-1. Relies as much as possible on each included library's defaults
-2. Only relies on GitHub Actions
-3. Does not include documentation generation
+## Usage
 
-## Getting started
+### bun.sh
 
-1. `npx degit gjuchault/typescript-library-starter my-project` or click on the `Use this template` button on GitHub!
-2. `cd my-project`
-3. `npm install`
-4. `git init` (if you used degit)
-5. `node --run setup`
+```ts
+import { SQL } from "bun";
+import { paginate, toSorted } from "paginate";
 
-To enable deployment, you will need to:
+const sql = new SQL(process.env["DB_URI"]);
 
-1. Set up the `NPM_TOKEN` secret in GitHub Actions ([Settings > Secrets > Actions](https://github.com/gjuchault/typescript-library-starter/settings/secrets/actions))
-2. Give `GITHUB_TOKEN` write permissions for GitHub releases ([Settings > Actions > General](https://github.com/gjuchault/typescript-library-starter/settings/actions) > Workflow permissions)
+const settings = paginate({
+  tableName: "users",
+  pagination: undefined,
+  orderBy: undefined,
+  identifier: (columnName) => sql(columnName),
+  fragment: sql,
+});
 
-## Features
+const unsortedUsers = await sql`
+	select
+		"id",
+		${settings.cursor},
+		${settings.hasNextPage} as "hasNextPage",
+		${settings.hasPreviousPage} as "hasPreviousPage"
+	from "users"
+	where ${settings.filter}
+	order by ${settings.order}
+	limit 3
+`;
 
-### Node.js, npm version
+// the applied order by might be different than the provided one to be used with `before` cursor
+// hence you should always call `toSorted()` with the same settings as the `orderBy` of paginate
+const users = toSorted(unsortedUsers);
 
-TypeScript Library Starter relies on [Volta](https://volta.sh/) to ensure the Node.js version is consistent across developers. It's also used in the GitHub workflow file.
-
-### TypeScript
-
-Leverages [esbuild](https://github.com/evanw/esbuild) for blazing-fast builds but keeps `tsc` to generate `.d.ts` files.
-Generates a single ESM build.
-
-Commands:
-
-- `build`: runs type checking, then ESM and `d.ts` files in the `build/` directory
-- `clean`: removes the `build/` directory
-- `type:check`: runs type checking
-
-### Tests
-
-TypeScript Library Starter uses [Node.js's native test runner](https://nodejs.org/api/test.html). Coverage is done using [c8](https://github.com/bcoe/c8) but will switch to Node.js's one once out.
-
-Commands:
-
-- `test`: runs test runner
-- `test:watch`: runs test runner in watch mode
-- `test:coverage`: runs test runner and generates coverage reports
-
-### Format & lint
-
-This template relies on [Biome](https://biomejs.dev/) to do both formatting & linting in no time.
-It also uses [cspell](https://github.com/streetsidesoftware/cspell) to ensure correct spelling.
-
-Commands:
-
-- `lint`: runs Biome with automatic fixing
-- `lint:check`: runs Biome without automatic fixing (used in CI)
-- `spell:check`: runs spell checking
-
-### Releasing
-
-Under the hood, this library uses [semantic-release](https://github.com/semantic-release/semantic-release) and [Commitizen](https://github.com/commitizen/cz-cli).
-The goal is to avoid manual release processes. Using `semantic-release` will automatically create a GitHub release (hence tags) as well as an npm release.
-Based on your commit history, `semantic-release` will automatically create a patch, feature, or breaking release.
-
-Commands:
-
-- `cz`: interactive CLI that helps you generate a proper git commit message, using [Commitizen](https://github.com/commitizen/cz-cli)
-- `semantic-release`: triggers a release (used in CI)
+// use with { after: nextPageCursor }
+const nextPageCursor = users.at(-1)?.cursor ?? undefined;
+// use with { before: previousPageCursor }
+const previousPageCursor = users.at(0)?.cursor ?? undefined;
+```
