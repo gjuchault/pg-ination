@@ -18,14 +18,21 @@ export type TestDataQuery<T extends string> = (
 	})[]
 >;
 
-export async function paginationTestData<Fragment, T extends string>({
+export async function paginationTestData<
+	Fragment,
+	Identifier,
+	T extends string,
+>({
 	escapeIdentifier,
 	sql,
 	adapter,
 	tableName: rawTableName,
 }: {
-	escapeIdentifier: (input: string) => Fragment;
-	sql: (query: TemplateStringsArray, ...args: Fragment[]) => Promise<unknown>;
+	escapeIdentifier: (input: string) => Identifier;
+	sql: (
+		query: TemplateStringsArray,
+		...args: (Fragment | Identifier)[]
+	) => Promise<unknown>;
 	adapter: Adapter<Fragment>;
 	tableName: string;
 }): Promise<TestDataQuery<T>> {
