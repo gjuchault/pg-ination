@@ -15,21 +15,13 @@ interface PaginateOptions<Sql, SqlIdentifier> {
    */
   tableName: string;
   /**
-   * the user cursor input, can be either { after: string }, { before: string } or undefined
+   * the user cursor input, can be either after, before or undefined
    */
   pagination?: { after: string } | { before: string } | undefined;
   /**
-   * the user ordering input, can be either { column: string, order: "asc" | "desc" } or undefined
+   * the user ordering input, can be either column and order or undefined
    */
   orderBy?: { column: string; order: "asc" | "desc" } | undefined;
-  /**
-   * a function used to create a fragment out of an identifier (table names or columns)
-   */
-  identifier: (column: string) => SqlIdentifier;
-  /**
-   * a template literal function used to create a fragment out of a query
-   */
-  fragment: Sql;
 }
 ```
 
