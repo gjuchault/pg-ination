@@ -58,7 +58,7 @@ interface AdapterResult<Fragment> {
 // create search params
 function paginate(options: PaginateOptions): PaginateResult;
 
-// convert search params into SQL fragments with `pgAdapter`, `bunAdapters`, etc.
+// convert search params into SQL fragments with `pgAdapter`, `bunAdapter`, etc.
 function adapter(
   options: PaginateOptions,
   result: PaginateResult
