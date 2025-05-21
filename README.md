@@ -39,7 +39,15 @@ interface PaginateOptions<Sql, SqlIdentifier> {
 
 ```ts
 import { SQL } from "bun";
-import { paginate, toSorted } from "paginate";
+import { paginate, toSorted } from "pg-ination";
+import { bunAdapter } from "pg-ination/adapters/bun";
+
+const options = {
+  tableName: "foo",
+  orderBy: { column: "name", order: "desc" },
+};
+const paginateResult = paginate(options);
+const fragments = bunAdapter(options, paginateResult);
 
 const sql = new SQL(process.env["DB_URI"]);
 
@@ -54,12 +62,12 @@ const settings = paginate({
 const unsortedUsers = await sql`
 	select
 		"id",
-		${settings.cursor},
-		${settings.hasNextPage} as "hasNextPage",
-		${settings.hasPreviousPage} as "hasPreviousPage"
+		${fragments.cursor},
+		${fragments.hasNextPage} as "hasNextPage",
+		${fragments.hasPreviousPage} as "hasPreviousPage"
 	from "users"
-	where ${settings.filter}
-	order by ${settings.order}
+	where ${fragments.filter}
+	order by ${fragments.order}
 	limit 3
 `;
 
