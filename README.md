@@ -90,15 +90,15 @@ const settings = paginate({
 // Fragments are escaped already
 
 const unsortedUsers = await client.query(`
-	select
-		"id",
-		${fragments.cursor},
-		${fragments.hasNextPage} as "hasNextPage",
-		${fragments.hasPreviousPage} as "hasPreviousPage"
-	from "users"
-	where ${fragments.filter}
-	order by ${fragments.order}
-	limit 3
+  select
+    "id",
+    ${fragments.cursor},
+    ${fragments.hasNextPage} as "hasNextPage",
+    ${fragments.hasPreviousPage} as "hasPreviousPage"
+  from "users"
+  where ${fragments.filter}
+  order by ${fragments.order}
+  limit 3
 `);
 
 // the applied order by might be different than the provided one to be used with `before` cursor
@@ -130,15 +130,15 @@ const sql = new SQL(process.env["DB_URI"]);
 // Fragments are escaped already
 
 const unsortedUsers = await sql`
-	select
-		"id",
-		${fragments.cursor},
-		${fragments.hasNextPage} as "hasNextPage",
-		${fragments.hasPreviousPage} as "hasPreviousPage"
-	from "users"
-	where ${fragments.filter}
-	order by ${fragments.order}
-	limit 3
+  select
+    "id",
+    ${fragments.cursor},
+    ${fragments.hasNextPage} as "hasNextPage",
+    ${fragments.hasPreviousPage} as "hasPreviousPage"
+  from "users"
+  where ${fragments.filter}
+  order by ${fragments.order}
+  limit 3
 `;
 
 // the applied order by might be different than the provided one to be used with `before` cursor
