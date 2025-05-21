@@ -1,4 +1,5 @@
 import { execFile as execFileSync } from "node:child_process";
+import { glob } from "glob";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -53,8 +54,19 @@ async function extractDts(): Promise<void> {
 		console.error(stderr);
 	}
 
-	await rimraf("./build/**/*.d.ts", { glob: true });
+	const filesToRemove = await glob("./build/**/*.d.ts", {
+		ignore: ["./build/adapters/**/*.d.ts"],
+	});
+
+	await rimraf(filesToRemove);
 	await fs.rename("trimmed.d.ts", "build/index.d.ts");
+
+	await fs.writeFile(
+		path.join(buildPath, "adapters/bun.d.ts"),
+		(
+			await fs.readFile(path.join(buildPath, "adapters/bun.d.ts"), "utf-8")
+		).replace(`"../paginate.ts";`, `"../index.d.ts";`),
+	);
 
 	// biome-ignore lint/suspicious/noConsole: script file
 	// biome-ignore lint/suspicious/noConsoleLog: script file
@@ -70,9 +82,12 @@ async function build(): Promise<void> {
 		format: "esm",
 		nodePaths: [srcPath],
 		sourcemap: true,
-		external: [],
+		external: ["bun"],
 		bundle: true,
-		entryPoints: [path.join(srcPath, "index.ts")],
+		entryPoints: [
+			path.join(srcPath, "index.ts"),
+			path.join(srcPath, "adapters/bun.ts"),
+		],
 		outdir: buildPath,
 	});
 

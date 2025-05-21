@@ -4,37 +4,29 @@ export interface Paginated<T> {
 	previousPageCursor?: string | undefined;
 }
 
-export interface PaginateResult<SqlQuery> {
-	cursor: SqlQuery;
-	filter: SqlQuery;
-	order: SqlQuery;
-	hasNextPage: SqlQuery;
-	hasPreviousPage: SqlQuery;
+export interface PaginateResult {
+	cursor: string[];
+	filter: { left: string[]; operator: ">" | "<"; right: string[] } | undefined;
+	order: { column: string; order: "asc" | "desc" }[];
+	hasNextPage: Pick<PaginateResult, "filter" | "order">;
+	hasPreviousPage: Pick<PaginateResult, "filter" | "order">;
 }
 
 type PageMode = "next-below" | "next-above";
 
-export interface PaginateOptions<Sql, SqlIdentifier> {
+export interface PaginateOptions {
 	/**
 	 * the table where your data lives
 	 */
 	tableName: string;
 	/**
-	 * the user cursor input, can be either { after: string }, { before: string } or undefined
+	 * the user cursor input, can be either after, before or undefined
 	 */
 	pagination?: { after: string } | { before: string } | undefined;
 	/**
-	 * the user ordering input, can be either { column: string, order: "asc" | "desc" } or undefined
+	 * the user ordering input, can be either column and order or undefined
 	 */
 	orderBy?: { column: string; order: "asc" | "desc" } | undefined;
-	/**
-	 * a function used to create a fragment out of an identifier (table names or columns)
-	 */
-	identifier: (column: string) => SqlIdentifier;
-	/**
-	 * a template literal function used to create a fragment out of a query
-	 */
-	fragment: Sql;
 }
 
 /**
@@ -42,72 +34,51 @@ export interface PaginateOptions<Sql, SqlIdentifier> {
  * @param payload - The pagination settings.
  * @returns A `PaginateResult` object containing the fragments to be used in a SQL query to paginate a table.
  */
-export function paginate<
-	Sql extends (...args: unknown[]) => SqlQuery,
-	SqlIdentifier,
-	SqlQuery,
->({
-	tableName: rawTableName,
+export function paginate({
+	tableName,
 	pagination,
 	orderBy,
-	identifier,
-	fragment,
-}: PaginateOptions<Sql, SqlIdentifier>): PaginateResult<SqlQuery> {
+}: PaginateOptions): PaginateResult {
 	const isAfter = pagination !== undefined && "after" in pagination;
 	const isBefore = pagination !== undefined && "before" in pagination;
 
-	const tableName = identifier(rawTableName);
-	const tableId = identifier(`${rawTableName}.id`);
+	const tableId = `${tableName}.id`;
 
-	let filter = fragment`1 = 1`;
-	let cursor = fragment`${tableId} as "cursor"`;
-	let order = fragment`${tableId} desc`;
+	let filter: PaginateResult["filter"];
+	let cursor: PaginateResult["cursor"] = [tableId];
+	let order: PaginateResult["order"] = [{ column: "id", order: "desc" }];
 	let pageMode: PageMode = "next-below";
 
 	if (orderBy?.order === "asc") {
-		({ cursor, filter, order, pageMode } = handleAscendingOrder<
-			Sql,
-			SqlIdentifier,
-			SqlQuery
-		>({
-			tableName: rawTableName,
+		({ cursor, filter, order, pageMode } = handleAscendingOrder({
+			tableName,
 			pagination,
 			orderByColumn: orderBy.column,
 			tableId,
-			identifier,
-			fragment,
 		}));
 	}
 
 	if (orderBy?.order === "desc") {
-		({ cursor, filter, order, pageMode } = handleDescendingOrder<
-			Sql,
-			SqlIdentifier,
-			SqlQuery
-		>({
-			tableName: rawTableName,
+		({ cursor, filter, order, pageMode } = handleDescendingOrder({
+			tableName,
 			pagination,
 			orderByColumn: orderBy.column,
 			tableId,
-			identifier,
-			fragment,
 		}));
 	}
 
 	if (orderBy === undefined && isAfter) {
-		filter = fragment`${tableId} < ${pagination.after}::uuid`;
+		filter = { left: [tableId], operator: "<", right: [pagination.after] };
 	} else if (orderBy === undefined && isBefore) {
-		order = fragment`${tableId} asc`;
-		filter = fragment`${tableId} > ${pagination.before}::uuid`;
+		order = [{ column: "id", order: "asc" }];
+		filter = { left: [tableId], operator: ">", right: [pagination.before] };
 	}
 
 	const { hasPreviousPage, hasNextPage } = getPagesExistence({
 		tableName,
-		tableId,
+		orderByColumn: orderBy?.column,
 		pageMode,
 		order,
-		fragment,
-		identifier,
 	});
 
 	return {
@@ -119,48 +90,51 @@ export function paginate<
 	};
 }
 
-function handleDescendingOrder<
-	Sql extends (...args: unknown[]) => SqlQuery,
-	SqlIdentifier,
-	SqlQuery,
->({
-	tableName: rawTableName,
+function handleDescendingOrder({
+	tableName,
 	pagination,
 	orderByColumn,
 	tableId,
-	identifier = (column) => column as SqlIdentifier,
-	fragment = ((column) => column) as Sql,
 }: {
 	tableName: string;
 	pagination?: { after: string } | { before: string } | undefined;
 	orderByColumn: string;
-	tableId: SqlIdentifier;
-	identifier?: (column: string) => SqlIdentifier;
-	fragment?: Sql;
-}): {
-	cursor: SqlQuery;
-	filter: SqlQuery;
-	order: SqlQuery;
+	tableId: string;
+}): Pick<PaginateResult, "cursor" | "filter" | "order"> & {
 	pageMode: PageMode;
 } {
 	const isAfter = pagination !== undefined && "after" in pagination;
 	const isBefore = pagination !== undefined && "before" in pagination;
 
-	let filter = fragment`1 = 1`;
+	let filter: PaginateResult["filter"];
 
-	const tableColumn = identifier(`${rawTableName}.${orderByColumn}`);
-	const cursor = fragment`(${tableId} || ',' || ${tableColumn}) as "cursor"`;
-	let order = fragment`${tableColumn} desc, ${tableId} desc`;
+	const tableColumn = `${tableName}.${orderByColumn}`;
+	const cursor: PaginateResult["cursor"] = [tableId, tableColumn];
+	let order: PaginateResult["order"] = [
+		{ column: tableColumn, order: "desc" },
+		{ column: tableId, order: "desc" },
+	];
 	const pageMode: PageMode = "next-below";
 
 	if (isAfter) {
 		const { id, column } = getCursorComparator(pagination.after);
-		filter = fragment`(${tableColumn}, ${tableId}) < (${column}, ${id})`;
+		filter = {
+			left: [tableColumn, tableId],
+			operator: "<",
+			right: [column, id],
+		};
 	} else if (isBefore) {
-		order = fragment`${tableColumn} asc, ${tableId} asc`;
+		order = [
+			{ column: tableColumn, order: "asc" },
+			{ column: tableId, order: "asc" },
+		];
 
 		const { id, column } = getCursorComparator(pagination.before);
-		filter = fragment`(${tableColumn}, ${tableId}) > (${column}, ${id})`;
+		filter = {
+			left: [tableColumn, tableId],
+			operator: ">",
+			right: [column, id],
+		};
 	}
 
 	return {
@@ -171,48 +145,51 @@ function handleDescendingOrder<
 	};
 }
 
-function handleAscendingOrder<
-	Sql extends (...args: unknown[]) => SqlQuery,
-	SqlIdentifier,
-	SqlQuery,
->({
-	tableName: rawTableName,
+function handleAscendingOrder({
+	tableName,
 	pagination,
 	orderByColumn,
 	tableId,
-	identifier = (column) => column as SqlIdentifier,
-	fragment = ((column) => column) as Sql,
 }: {
 	tableName: string;
 	pagination?: { after: string } | { before: string } | undefined;
 	orderByColumn: string;
-	tableId: SqlIdentifier;
-	identifier?: (column: string) => SqlIdentifier;
-	fragment?: Sql;
-}): {
-	cursor: SqlQuery;
-	filter: SqlQuery;
-	order: SqlQuery;
+	tableId: string;
+}): Pick<PaginateResult, "cursor" | "filter" | "order"> & {
 	pageMode: PageMode;
 } {
 	const isAfter = pagination !== undefined && "after" in pagination;
 	const isBefore = pagination !== undefined && "before" in pagination;
 
-	let filter = fragment`1 = 1`;
+	let filter: PaginateResult["filter"];
 
-	const tableColumn = identifier(`${rawTableName}.${orderByColumn}`);
-	const cursor = fragment`(${tableId} || ',' || ${tableColumn}) as "cursor"`;
-	let order = fragment`${tableColumn} asc, ${tableId} asc`;
+	const tableColumn = `${tableName}.${orderByColumn}`;
+	const cursor: PaginateResult["cursor"] = [tableId, tableColumn];
+	let order: PaginateResult["order"] = [
+		{ column: tableColumn, order: "asc" },
+		{ column: tableId, order: "asc" },
+	];
 
 	const pageMode: PageMode = "next-above";
 
 	if (isAfter) {
 		const { id, column } = getCursorComparator(pagination.after);
-		filter = fragment`(${tableColumn}, ${tableId}) > (${column}, ${id})`;
+		filter = {
+			left: [tableColumn, tableId],
+			operator: ">",
+			right: [column, id],
+		};
 	} else if (isBefore) {
-		order = fragment`${tableColumn} desc, ${tableId} desc`;
+		order = [
+			{ column: tableColumn, order: "desc" },
+			{ column: tableId, order: "desc" },
+		];
 		const { id, column } = getCursorComparator(pagination.before);
-		filter = fragment`(${tableColumn}, ${tableId}) < (${column}, ${id})`;
+		filter = {
+			left: [tableColumn, tableId],
+			operator: "<",
+			right: [column, id],
+		};
 	}
 
 	return {
@@ -238,44 +215,57 @@ function getCursorComparator(cursor: string): {
 	return { id, column };
 }
 
-function getPagesExistence<
-	Sql extends (...args: unknown[]) => SqlQuery,
-	SqlIdentifier,
-	SqlQuery,
->({
+function getPagesExistence({
 	tableName,
-	tableId,
+	orderByColumn,
 	pageMode,
 	order,
-	identifier = (column) => column as SqlIdentifier,
-	fragment = ((column) => column) as Sql,
 }: {
-	tableName: SqlIdentifier;
-	tableId: SqlIdentifier;
+	tableName: string;
+	orderByColumn?: string | undefined;
 	pageMode: PageMode;
-	order: SqlQuery;
-	identifier?: (column: string) => SqlIdentifier;
-	fragment?: Sql;
-}): { hasPreviousPage: SqlQuery; hasNextPage: SqlQuery } {
-	const pageTable = identifier("page");
-	const pageId = identifier("page.id");
+	order: PaginateResult["order"];
+}): Pick<PaginateResult, "hasNextPage" | "hasPreviousPage"> {
+	const pageId = "subquery.id";
+	const tableId = `${tableName}.id`;
+	const pageColumn = orderByColumn ? `subquery.${orderByColumn}` : undefined;
+	const tableColumn = orderByColumn
+		? `${tableName}.${orderByColumn}`
+		: undefined;
 
-	const nextOperator = pageMode === "next-below" ? fragment`<` : fragment`>`;
-	const previousOperator =
-		pageMode === "next-below" ? fragment`>` : fragment`<`;
+	const nextOperator = pageMode === "next-below" ? "<" : ">";
+	const previousOperator = pageMode === "next-below" ? ">" : "<";
 
 	return {
-		hasPreviousPage: fragment`exists (
-			select ${pageId} from ${tableName} as ${pageTable}
-			where ${pageId} ${previousOperator} ${tableId}
-			order by ${order}
-			limit 1
-		)`,
-		hasNextPage: fragment`exists (
-			select ${pageId} from ${tableName} as ${pageTable}
-			where ${pageId} ${nextOperator} ${tableId}
-			order by ${order}
-			limit 1
-		)`,
+		hasPreviousPage: {
+			filter:
+				pageColumn !== undefined && tableColumn !== undefined
+					? {
+							left: [pageColumn, pageId],
+							operator: previousOperator,
+							right: [tableColumn, tableId],
+						}
+					: {
+							left: [pageId],
+							operator: previousOperator,
+							right: [tableId],
+						},
+			order,
+		},
+		hasNextPage: {
+			filter:
+				pageColumn !== undefined && tableColumn !== undefined
+					? {
+							left: [pageColumn, pageId],
+							operator: nextOperator,
+							right: [tableColumn, tableId],
+						}
+					: {
+							left: [pageId],
+							operator: nextOperator,
+							right: [tableId],
+						},
+			order,
+		},
 	};
 }

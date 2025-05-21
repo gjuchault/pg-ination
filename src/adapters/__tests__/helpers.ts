@@ -1,4 +1,5 @@
-import type { PaginateResult } from "../paginate.ts";
+import { paginate, type PaginateOptions } from "../../paginate.ts";
+import type { Adapter } from "../index.ts";
 
 export interface PaginationQueryData {
 	cursor: string;
@@ -6,8 +7,8 @@ export interface PaginationQueryData {
 	hasPreviousPage: boolean;
 }
 
-export type TestDataQuery<SqlQuery, T extends string> = (
-	settings: PaginateResult<SqlQuery>,
+export type TestDataQuery<T extends string> = (
+	options: PaginateOptions,
 	extraField?: T,
 ) => Promise<
 	({ [Key in T]: string } & {
@@ -18,10 +19,14 @@ export type TestDataQuery<SqlQuery, T extends string> = (
 >;
 
 export async function paginationTestData<
-	Sql extends (...args: unknown[]) => unknown,
-	SqlQuery,
+	Fragment,
+	Sql extends (...args: unknown[]) => Fragment,
 	T extends string,
->(sql: Sql, rawTableName: string): Promise<TestDataQuery<SqlQuery, T>> {
+>(
+	sql: Sql,
+	adapter: Adapter<Fragment>,
+	rawTableName: string,
+): Promise<TestDataQuery<T>> {
 	const tableName = sql(rawTableName);
 
 	await sql`
@@ -47,27 +52,33 @@ export async function paginationTestData<
 			('00000001-0000-0009-0000-000000000009', 'IIII', '2025-05-09 10:11:08.000+00')
 	`;
 
-	return async (settings: PaginateResult<SqlQuery>, extraField?: T) => {
-		const fields = extraField
-			? sql`
-				${settings.cursor},
-				${settings.hasNextPage} as "hasNextPage",
-				${settings.hasPreviousPage} as "hasPreviousPage",
-				${sql(extraField)}
-			`
-			: sql`
-				${settings.cursor},
-				${settings.hasNextPage} as "hasNextPage",
-				${settings.hasPreviousPage} as "hasPreviousPage"
-			`;
+	return async (options: PaginateOptions, extraField?: T) => {
+		const result = paginate(options);
+		const adapterResult = adapter(options, result);
+
+		if (extraField !== undefined) {
+			return (await sql`
+				select
+					${adapterResult.cursor} as "cursor",
+					${adapterResult.hasNextPage} as "hasNextPage",
+					${adapterResult.hasPreviousPage} as "hasPreviousPage",
+					${sql(extraField)}
+				from ${tableName}
+				where ${adapterResult.filter}
+				order by ${adapterResult.order}
+				limit 3
+			`) as ReturnType<TestDataQuery<T>>;
+		}
 
 		return (await sql`
 			select
-				${fields}
+				${adapterResult.cursor} as "cursor",
+				${adapterResult.hasNextPage} as "hasNextPage",
+				${adapterResult.hasPreviousPage} as "hasPreviousPage"
 			from ${tableName}
-			where ${settings.filter}
-			order by ${settings.order}
+			where ${adapterResult.filter}
+			order by ${adapterResult.order}
 			limit 3
-		`) as ReturnType<TestDataQuery<SqlQuery, T>>;
+		`) as ReturnType<TestDataQuery<T>>;
 	};
 }

@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
-import type { SQL, SQLQuery } from "bun";
+import type { SQL } from "bun";
 
-import { paginate } from "../paginate.ts";
-import { toSorted } from "../sort.ts";
+import { toSorted } from "../../sort.ts";
 import { type TestDataQuery, paginationTestData } from "./helpers.ts";
 
 if ("bun" in process.versions) {
@@ -17,17 +16,18 @@ if ("bun" in process.versions) {
 		"bun:test"
 	);
 	const { SQL } = await import("bun");
+	const { bunAdapter } = await import("../bun.ts");
 
 	describe("paginate()", async () => {
-		describe("given no ordering", async () => {
+		describe("given no ordering", () => {
 			let sql: SQL;
 			let tableName: string;
-			let q: TestDataQuery<SQLQuery, "id">;
+			let q: TestDataQuery<"id">;
 
 			beforeAll(async () => {
 				sql = new SQL(dbUrl);
 				tableName = `data-${randomUUID()}`;
-				q = await paginationTestData(sql, tableName);
+				q = await paginationTestData(sql, bunAdapter, tableName);
 			});
 
 			afterAll(async () => {
@@ -36,13 +36,11 @@ if ("bun" in process.versions) {
 
 			test("when called getting first page", async () => {
 				const first3 = await q(
-					paginate<SQL, SQLQuery, SQLQuery>({
+					{
 						tableName,
 						pagination: undefined,
 						orderBy: undefined,
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"id",
 				);
 
@@ -72,13 +70,11 @@ if ("bun" in process.versions) {
 
 			test("when called getting second page", async () => {
 				const next3 = await q(
-					paginate({
+					{
 						tableName,
 						pagination: { after: "00000001-0000-0007-0000-000000000007" },
 						orderBy: undefined,
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"id",
 				);
 
@@ -108,24 +104,20 @@ if ("bun" in process.versions) {
 
 			test("when called getting back to first page", async () => {
 				const first3 = await q(
-					paginate<SQL, SQLQuery, SQLQuery>({
+					{
 						tableName,
 						pagination: undefined,
 						orderBy: undefined,
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"id",
 				);
 
 				const prev3 = await q(
-					paginate({
+					{
 						tableName,
 						pagination: { before: "00000001-0000-0006-0000-000000000006" },
 						orderBy: undefined,
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"id",
 				);
 
@@ -139,13 +131,11 @@ if ("bun" in process.versions) {
 			// before/after)
 			test("when called getting back to middle page", async () => {
 				const prev3 = await q(
-					paginate({
+					{
 						tableName,
 						pagination: { before: "00000001-0000-0005-0000-000000000005" },
 						orderBy: undefined,
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"id",
 				);
 
@@ -193,13 +183,11 @@ if ("bun" in process.versions) {
 
 			test("when called getting the last page", async () => {
 				const last3 = await q(
-					paginate({
+					{
 						tableName,
 						pagination: { after: "00000001-0000-0004-0000-000000000004" },
 						orderBy: undefined,
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"id",
 				);
 
@@ -227,15 +215,15 @@ if ("bun" in process.versions) {
 			});
 		});
 
-		describe("given arbitrary order, asc", async () => {
+		describe("given arbitrary order, asc", () => {
 			let sql: SQL;
 			let tableName: string;
-			let q: TestDataQuery<SQLQuery, "name">;
+			let q: TestDataQuery<"name">;
 
 			beforeAll(async () => {
 				sql = new SQL(dbUrl);
 				tableName = `data-${randomUUID()}`;
-				q = await paginationTestData(sql, tableName);
+				q = await paginationTestData(sql, bunAdapter, tableName);
 			});
 
 			afterAll(async () => {
@@ -244,13 +232,11 @@ if ("bun" in process.versions) {
 
 			test("when called getting first page", async () => {
 				const first3 = await q(
-					paginate({
+					{
 						tableName,
 						pagination: undefined,
 						orderBy: { column: "name", order: "asc" },
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"name",
 				);
 
@@ -281,13 +267,11 @@ if ("bun" in process.versions) {
 
 			test("when called getting second page", async () => {
 				const next3 = await q(
-					paginate({
+					{
 						tableName,
 						pagination: { after: "00000001-0000-0003-0000-000000000003,CCCC" },
 						orderBy: { column: "name", order: "asc" },
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"name",
 				);
 
@@ -318,24 +302,20 @@ if ("bun" in process.versions) {
 
 			test("when called getting back to first page", async () => {
 				const first3 = await q(
-					paginate({
+					{
 						tableName,
 						pagination: undefined,
 						orderBy: { column: "name", order: "asc" },
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"name",
 				);
 
 				const prev3 = await q(
-					paginate({
+					{
 						tableName,
 						pagination: { before: "00000001-0000-0004-0000-000000000004,DDDD" },
 						orderBy: { column: "name", order: "asc" },
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"name",
 				);
 
@@ -351,13 +331,11 @@ if ("bun" in process.versions) {
 			// before/after)
 			test("when called getting back to middle page", async () => {
 				const prev3 = await q(
-					paginate({
+					{
 						tableName,
 						pagination: { before: "00000001-0000-0005-0000-000000000005,EEEE" },
 						orderBy: { column: "name", order: "asc" },
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"name",
 				);
 
@@ -407,13 +385,11 @@ if ("bun" in process.versions) {
 
 			test("when called getting the last page", async () => {
 				const last3 = await q(
-					paginate({
+					{
 						tableName,
 						pagination: { after: "00000001-0000-0006-0000-000000000006,FFFF" },
 						orderBy: { column: "name", order: "asc" },
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"name",
 				);
 
@@ -443,15 +419,15 @@ if ("bun" in process.versions) {
 			});
 		});
 
-		describe("given arbitrary order, desc", async () => {
+		describe("given arbitrary order, desc", () => {
 			let sql: SQL;
 			let tableName: string;
-			let q: TestDataQuery<SQLQuery, "name">;
+			let q: TestDataQuery<"name">;
 
 			beforeAll(async () => {
 				sql = new SQL(dbUrl);
 				tableName = `data-${randomUUID()}`;
-				q = await paginationTestData(sql, tableName);
+				q = await paginationTestData(sql, bunAdapter, tableName);
 			});
 
 			afterAll(async () => {
@@ -460,13 +436,11 @@ if ("bun" in process.versions) {
 
 			test("when called getting first page", async () => {
 				const first3 = await q(
-					paginate({
+					{
 						tableName,
 						pagination: undefined,
 						orderBy: { column: "name", order: "desc" },
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"name",
 				);
 
@@ -497,13 +471,11 @@ if ("bun" in process.versions) {
 
 			test("when called getting second page", async () => {
 				const next3 = await q(
-					paginate({
+					{
 						tableName,
 						pagination: { after: "00000001-0000-0007-0000-000000000007,GGGG" },
 						orderBy: { column: "name", order: "desc" },
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"name",
 				);
 
@@ -534,24 +506,20 @@ if ("bun" in process.versions) {
 
 			test("when called getting back to first page", async () => {
 				const first3 = await q(
-					paginate({
+					{
 						tableName,
 						pagination: undefined,
 						orderBy: { column: "name", order: "desc" },
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"name",
 				);
 
 				const prev3 = await q(
-					paginate({
+					{
 						tableName,
 						pagination: { before: "00000001-0000-0006-0000-000000000006,FFFF" },
 						orderBy: { column: "name", order: "desc" },
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"name",
 				);
 
@@ -567,13 +535,11 @@ if ("bun" in process.versions) {
 			// before/after)
 			test("when called getting back to middle page", async () => {
 				const prev3 = await q(
-					paginate({
+					{
 						tableName,
 						pagination: { before: "00000001-0000-0005-0000-000000000005,EEEE" },
 						orderBy: { column: "name", order: "desc" },
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"name",
 				);
 
@@ -623,13 +589,11 @@ if ("bun" in process.versions) {
 
 			test("when called getting the last page", async () => {
 				const last3 = await q(
-					paginate({
+					{
 						tableName,
 						pagination: { after: "00000001-0000-0004-0000-000000000004,DDDD" },
 						orderBy: { column: "name", order: "desc" },
-						fragment: sql,
-						identifier: (column) => sql(column),
-					}),
+					},
 					"name",
 				);
 

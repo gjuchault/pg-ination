@@ -1,6 +1,6 @@
 import type { PaginateOptions } from "./paginate.ts";
 
-interface SortOptions extends Pick<PaginateOptions<never, never>, "orderBy"> {}
+export interface SortOptions extends Pick<PaginateOptions, "orderBy"> {}
 
 export function toSorted<T>(items: T[], orderBy?: SortOptions["orderBy"]) {
 	if (orderBy === undefined) {
