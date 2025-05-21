@@ -1,9 +1,9 @@
 import { execFile as execFileSync } from "node:child_process";
-import { glob } from "glob";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { build as esbuild } from "esbuild";
+import { glob } from "glob";
 import { isMain } from "is-main";
 import { rimraf } from "rimraf";
 import packageJson from "../package.json" with { type: "json" };

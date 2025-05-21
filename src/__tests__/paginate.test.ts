@@ -1,8 +1,8 @@
-import { describe, test } from "node:test";
 import { deepEqual } from "node:assert/strict";
+import { describe, test } from "node:test";
 
-import { paginate } from "../paginate.ts";
 import { throws } from "node:assert/strict";
+import { paginate } from "../paginate.ts";
 
 await describe("paginate()", async () => {
 	await describe("given no ordering", async () => {

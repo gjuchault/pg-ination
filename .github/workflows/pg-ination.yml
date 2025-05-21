@@ -111,7 +111,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: npm ci
       - name: ⚡ Tests
-        run: bun test src/__tests__/bun.test.ts
+        run: bun test src/**/__tests__/**/bun.test.ts
         env:
           DB_URL: postgresql://pgination:pgination@localhost:5432/test
 

@@ -1,4 +1,4 @@
-import { sql, type SQLQuery } from "bun";
+import { type SQLQuery, sql } from "bun";
 import type { PaginateOptions, PaginateResult } from "../paginate.ts";
 import type { AdapterResult } from "./index.ts";
 

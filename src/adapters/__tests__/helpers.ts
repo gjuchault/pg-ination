@@ -1,4 +1,4 @@
-import { paginate, type PaginateOptions } from "../../paginate.ts";
+import { type PaginateOptions, paginate } from "../../paginate.ts";
 import type { Adapter } from "../index.ts";
 
 export interface PaginationQueryData {
