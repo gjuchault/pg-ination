@@ -75,7 +75,9 @@ async function extractDts(): Promise<void> {
 					path.join(buildPath, `adapters/${adapter}.d.ts`),
 					"utf-8",
 				)
-			).replace(`"../paginate.ts";`, `"../index.d.ts";`),
+			)
+				.replace(`"../paginate.ts";`, `"../index.d.ts";`)
+				.replace(`"./index.ts";`, `"../index.d.ts";`),
 		);
 	}
 
