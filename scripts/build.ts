@@ -15,6 +15,12 @@ const execFile = promisify(execFileSync);
 const srcPath = path.join(process.cwd(), "src");
 const buildPath = path.join(process.cwd(), "build");
 
+const allAdapters = (
+	await glob(path.join(srcPath, "adapters/*.ts"), {
+		ignore: "**/index.ts",
+	})
+).map((file) => path.basename(file, ".ts"));
+
 async function clear(): Promise<void> {
 	const time = Date.now();
 
@@ -55,18 +61,23 @@ async function extractDts(): Promise<void> {
 	}
 
 	const filesToRemove = await glob("./build/**/*.d.ts", {
-		ignore: ["./build/adapters/**/*.d.ts"],
+		ignore: allAdapters.map((adapter) => `./build/adapters/${adapter}.d.ts`),
 	});
 
 	await rimraf(filesToRemove);
 	await fs.rename("trimmed.d.ts", "build/index.d.ts");
 
-	await fs.writeFile(
-		path.join(buildPath, "adapters/bun.d.ts"),
-		(
-			await fs.readFile(path.join(buildPath, "adapters/bun.d.ts"), "utf-8")
-		).replace(`"../paginate.ts";`, `"../index.d.ts";`),
-	);
+	for (const adapter of allAdapters) {
+		await fs.writeFile(
+			path.join(buildPath, `adapters/${adapter}.d.ts`),
+			(
+				await fs.readFile(
+					path.join(buildPath, `adapters/${adapter}.d.ts`),
+					"utf-8",
+				)
+			).replace(`"../paginate.ts";`, `"../index.d.ts";`),
+		);
+	}
 
 	// biome-ignore lint/suspicious/noConsole: script file
 	// biome-ignore lint/suspicious/noConsoleLog: script file
@@ -86,7 +97,9 @@ async function build(): Promise<void> {
 		bundle: true,
 		entryPoints: [
 			path.join(srcPath, "index.ts"),
-			path.join(srcPath, "adapters/bun.ts"),
+			...allAdapters.map((adapter) =>
+				path.join(srcPath, `adapters/${adapter}.ts`),
+			),
 		],
 		outdir: buildPath,
 	});

@@ -76,6 +76,22 @@ jobs:
     name: ⚡ Tests
     runs-on: ubuntu-latest
     needs: [dependencies]
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: pgination
+          POSTGRES_PASSWORD: pgination
+          POSTGRES_DB: test
+          PGDATA: /dev/shm/pgdata
+        options: >-
+          --mount type=tmpfs,destination=/dev/shm
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -85,6 +101,8 @@ jobs:
       - run: npm ci
       - name: ⚡ Tests
         run: node --run test:coverage
+        env:
+          DB_URL: postgresql://pgination:pgination@localhost:5432/test
 
   test-bun:
     name: 🥯 Bun Tests

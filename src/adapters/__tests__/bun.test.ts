@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { SQL } from "bun";
 
 import { toSorted } from "../../sort.ts";
@@ -18,7 +17,7 @@ if ("bun" in process.versions) {
 	const { SQL } = await import("bun");
 	const { bunAdapter } = await import("../bun.ts");
 
-	describe("paginate()", async () => {
+	describe("bunAdapter", async () => {
 		describe("given no ordering", () => {
 			let sql: SQL;
 			let tableName: string;
@@ -26,8 +25,13 @@ if ("bun" in process.versions) {
 
 			beforeAll(async () => {
 				sql = new SQL(dbUrl);
-				tableName = `data-${randomUUID()}`;
-				q = await paginationTestData(sql, bunAdapter, tableName);
+				tableName = "data-bun-no-ordering";
+				q = await paginationTestData({
+					escapeIdentifier: (input) => sql(input),
+					sql: (query, ...args) => sql(query, ...args),
+					adapter: bunAdapter,
+					tableName,
+				});
 			});
 
 			afterAll(async () => {
@@ -222,8 +226,13 @@ if ("bun" in process.versions) {
 
 			beforeAll(async () => {
 				sql = new SQL(dbUrl);
-				tableName = `data-${randomUUID()}`;
-				q = await paginationTestData(sql, bunAdapter, tableName);
+				tableName = "data-bun-arbitrary-ordering-asc";
+				q = await paginationTestData({
+					escapeIdentifier: (input) => sql(input),
+					sql: (query, ...args) => sql(query, ...args),
+					adapter: bunAdapter,
+					tableName,
+				});
 			});
 
 			afterAll(async () => {
@@ -426,8 +435,13 @@ if ("bun" in process.versions) {
 
 			beforeAll(async () => {
 				sql = new SQL(dbUrl);
-				tableName = `data-${randomUUID()}`;
-				q = await paginationTestData(sql, bunAdapter, tableName);
+				tableName = "data-bun-arbitrary-ordering-desc";
+				q = await paginationTestData({
+					escapeIdentifier: (input) => sql(input),
+					sql: (query, ...args) => sql(query, ...args),
+					adapter: bunAdapter,
+					tableName,
+				});
 			});
 
 			afterAll(async () => {
