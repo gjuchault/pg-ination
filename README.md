@@ -63,6 +63,9 @@ function adapter(
   options: PaginateOptions,
   result: PaginateResult
 ): AdapterResult;
+
+// ensures sorting given the order by initial options
+function toSorted<T>(data: T[], orderBy?: SortOptions["orderBy"]): T[];
 ```
 
 ### node-postgres
