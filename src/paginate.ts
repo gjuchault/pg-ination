@@ -1,9 +1,3 @@
-export interface Paginated<T> {
-	data: T[];
-	nextPageCursor?: string | undefined;
-	previousPageCursor?: string | undefined;
-}
-
 export interface PaginateResult {
 	cursor: string[];
 	filter: { left: string[]; operator: ">" | "<"; right: string[] } | undefined;
