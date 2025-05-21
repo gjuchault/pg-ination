@@ -1,7 +1,7 @@
 import { type SQLQuery, sql } from "bun";
 import type { PaginateOptions, PaginateResult } from "../paginate.ts";
-import type { AdapterResult } from "./index.ts";
 import { basePgAdapter } from "./base-pg/index.ts";
+import type { AdapterResult } from "./index.ts";
 
 export function bunAdapter(
 	options: PaginateOptions,
