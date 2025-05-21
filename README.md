@@ -150,3 +150,47 @@ const nextPageCursor = users.at(-1)?.cursor ?? undefined;
 // use with { before: previousPageCursor }
 const previousPageCursor = users.at(0)?.cursor ?? undefined;
 ```
+
+## Why is `toSorted()` needed?
+
+When going backwards, keeping the initial order would mean selecting last rows.
+Example:
+
+```sql
+-- first page: F, E
+select name
+from unnest(array['A', 'B', 'C', 'D', 'E', 'F']) as name
+order by name DESC
+limit 2;
+
+-- second page: D, C
+select name
+from unnest(array['A', 'B', 'C', 'D', 'E', 'F']) as name
+where name < 'E'
+order by name DESC
+limit 2;
+
+
+-- third page: B, A
+select name
+from unnest(array['A', 'B', 'C', 'D', 'E', 'F']) as name
+where name < 'C'
+order by name DESC
+limit 2;
+
+-- now pressing back to second page, keeping the same order
+-- this incorrectly returns F, E
+select name
+from unnest(array['A', 'B', 'C', 'D', 'E', 'F']) as name
+where name > 'B'
+order by name DESC
+limit 2;
+
+-- so instead we sort ascending since we're going backwards
+-- this returns C, D which we can reverse to get D, C
+select name
+from unnest(array['A', 'B', 'C', 'D', 'E', 'F']) as name
+where name < 'B'
+order by name ASC
+limit 2;
+```
