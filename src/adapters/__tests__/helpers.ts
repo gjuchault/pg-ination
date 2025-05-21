@@ -18,16 +18,18 @@ export type TestDataQuery<T extends string> = (
 	})[]
 >;
 
-export async function paginationTestData<
-	Fragment,
-	Sql extends (...args: unknown[]) => Fragment,
-	T extends string,
->(
-	sql: Sql,
-	adapter: Adapter<Fragment>,
-	rawTableName: string,
-): Promise<TestDataQuery<T>> {
-	const tableName = sql(rawTableName);
+export async function paginationTestData<Fragment, T extends string>({
+	escapeIdentifier,
+	sql,
+	adapter,
+	tableName: rawTableName,
+}: {
+	escapeIdentifier: (input: string) => Fragment;
+	sql: (query: TemplateStringsArray, ...args: Fragment[]) => Promise<unknown>;
+	adapter: Adapter<Fragment>;
+	tableName: string;
+}): Promise<TestDataQuery<T>> {
+	const tableName = escapeIdentifier(rawTableName);
 
 	await sql`
 		create table if not exists ${tableName} (
@@ -50,6 +52,7 @@ export async function paginationTestData<
 			('00000001-0000-0007-0000-000000000007', 'GGGG', '2025-05-09 10:11:06.000+00'),
 			('00000001-0000-0008-0000-000000000008', 'HHHH', '2025-05-09 10:11:07.000+00'),
 			('00000001-0000-0009-0000-000000000009', 'IIII', '2025-05-09 10:11:08.000+00')
+		on conflict do nothing
 	`;
 
 	return async (options: PaginateOptions, extraField?: T) => {
@@ -62,7 +65,7 @@ export async function paginationTestData<
 					${adapterResult.cursor} as "cursor",
 					${adapterResult.hasNextPage} as "hasNextPage",
 					${adapterResult.hasPreviousPage} as "hasPreviousPage",
-					${sql(extraField)}
+					${escapeIdentifier(extraField)}
 				from ${tableName}
 				where ${adapterResult.filter}
 				order by ${adapterResult.order}
