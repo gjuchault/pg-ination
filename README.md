@@ -65,6 +65,52 @@ function adapter(
 ): AdapterResult;
 ```
 
+### node-postgres
+
+```ts
+import { Client } from "pg";
+import { paginate, toSorted } from "pg-ination";
+import { pgAdapter } from "pg-ination/adapters/pg";
+
+const options = {
+  tableName: "foo",
+  orderBy: { column: "name", order: "desc" },
+};
+const paginateResult = paginate(options);
+const fragments = pgAdapter(options, paginateResult);
+
+const client = new Client(process.env["DB_URI"]);
+
+const settings = paginate({
+  tableName: "users",
+  pagination: undefined,
+  orderBy: undefined,
+});
+
+// Fragments are escaped already
+
+const unsortedUsers = await client.query(`
+	select
+		"id",
+		${fragments.cursor},
+		${fragments.hasNextPage} as "hasNextPage",
+		${fragments.hasPreviousPage} as "hasPreviousPage"
+	from "users"
+	where ${fragments.filter}
+	order by ${fragments.order}
+	limit 3
+`);
+
+// the applied order by might be different than the provided one to be used with `before` cursor
+// hence you should always call `toSorted()` with the same settings as the `orderBy` of paginate
+const users = toSorted(unsortedUsers, options.orderBy);
+
+// use with { after: nextPageCursor }
+const nextPageCursor = users.at(-1)?.cursor ?? undefined;
+// use with { before: previousPageCursor }
+const previousPageCursor = users.at(0)?.cursor ?? undefined;
+```
+
 ### bun.sh
 
 ```ts
@@ -81,13 +127,7 @@ const fragments = bunAdapter(options, paginateResult);
 
 const sql = new SQL(process.env["DB_URI"]);
 
-const settings = paginate({
-  tableName: "users",
-  pagination: undefined,
-  orderBy: undefined,
-  identifier: (columnName) => sql(columnName),
-  fragment: sql,
-});
+// Fragments are escaped already
 
 const unsortedUsers = await sql`
 	select
@@ -103,7 +143,7 @@ const unsortedUsers = await sql`
 
 // the applied order by might be different than the provided one to be used with `before` cursor
 // hence you should always call `toSorted()` with the same settings as the `orderBy` of paginate
-const users = toSorted(unsortedUsers);
+const users = toSorted(unsortedUsers, options.orderBy);
 
 // use with { after: nextPageCursor }
 const nextPageCursor = users.at(-1)?.cursor ?? undefined;
