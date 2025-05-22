@@ -54,7 +54,7 @@ export function basePgAdapter(
 
 function applyFilter(filter: PaginateResult["filter"], sql_: Sql_): string {
 	if (filter === undefined) {
-		return "1 = 1";
+		return "true";
 	}
 
 	const { left, right, operator } = filter;

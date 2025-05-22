@@ -1,7 +1,8 @@
 import type { SQL } from "bun";
 
 import { toSorted } from "../../sort.ts";
-import { type TestDataQuery, paginationTestData } from "./helpers.ts";
+import { paginationTestData } from "./helpers.ts";
+import { paginate, type PaginateOptions } from "../../paginate.ts";
 
 if ("bun" in process.versions) {
 	// biome-ignore lint/complexity/useLiteralKeys: noPropertyAccessFromIndexSignature
@@ -17,20 +18,44 @@ if ("bun" in process.versions) {
 	const { SQL } = await import("bun");
 	const { bunAdapter } = await import("../bun.ts");
 
+	async function query({
+		sql,
+		options,
+		extraField,
+	}: {
+		sql: SQL;
+		options: PaginateOptions;
+		extraField?: string;
+	}): Promise<unknown[]> {
+		const result = paginate(options);
+		const adapterResult = bunAdapter(options, result);
+
+		const data = await sql`
+			select
+				${adapterResult.cursor} as "cursor",
+				${adapterResult.hasNextPage} as "hasNextPage",
+				${adapterResult.hasPreviousPage} as "hasPreviousPage",
+				${extraField !== undefined ? sql(extraField) : sql``}
+			from ${sql(options.tableName)}
+			where ${adapterResult.filter}
+			order by ${adapterResult.order}
+			limit 3
+		`;
+
+		return data;
+	}
+
 	describe("bunAdapter", async () => {
 		describe("given no ordering", () => {
 			let sql: SQL;
 			let tableName: string;
-			let q: TestDataQuery<"id">;
 
 			beforeAll(async () => {
 				sql = new SQL(dbUrl);
 				tableName = "data-bun-no-ordering";
-				q = await paginationTestData({
-					escapeIdentifier: (input) => sql(input),
+				await paginationTestData({
 					sql: (query, ...args) => sql(query, ...args),
-					adapter: bunAdapter,
-					tableName,
+					tableName: sql(tableName),
 				});
 			});
 
@@ -39,14 +64,15 @@ if ("bun" in process.versions) {
 			});
 
 			test("when called getting first page", async () => {
-				const first3 = await q(
-					{
+				const first3 = await query({
+					options: {
 						tableName,
 						pagination: undefined,
 						orderBy: undefined,
 					},
-					"id",
-				);
+					extraField: "id",
+					sql,
+				});
 
 				expect(first3).toEqual([
 					{
@@ -73,14 +99,15 @@ if ("bun" in process.versions) {
 			});
 
 			test("when called getting second page", async () => {
-				const next3 = await q(
-					{
+				const next3 = await query({
+					options: {
 						tableName,
 						pagination: { after: "00000001-0000-0007-0000-000000000007" },
 						orderBy: undefined,
 					},
-					"id",
-				);
+					extraField: "id",
+					sql,
+				});
 
 				expect(next3).toEqual([
 					{
@@ -107,23 +134,25 @@ if ("bun" in process.versions) {
 			});
 
 			test("when called getting back to first page", async () => {
-				const first3 = await q(
-					{
+				const first3 = await query({
+					options: {
 						tableName,
 						pagination: undefined,
 						orderBy: undefined,
 					},
-					"id",
-				);
+					extraField: "id",
+					sql,
+				});
 
-				const prev3 = await q(
-					{
+				const prev3 = await query({
+					options: {
 						tableName,
 						pagination: { before: "00000001-0000-0006-0000-000000000006" },
 						orderBy: undefined,
 					},
-					"id",
-				);
+					extraField: "id",
+					sql,
+				});
 
 				expect(prev3).toEqual(first3.toReversed());
 				expect(toSorted(prev3)).toEqual(first3);
@@ -134,14 +163,15 @@ if ("bun" in process.versions) {
 			// the fact that the previous page should be actually be done thanks to
 			// before/after)
 			test("when called getting back to middle page", async () => {
-				const prev3 = await q(
-					{
+				const prev3 = await query({
+					options: {
 						tableName,
 						pagination: { before: "00000001-0000-0005-0000-000000000005" },
 						orderBy: undefined,
 					},
-					"id",
-				);
+					extraField: "id",
+					sql,
+				});
 
 				expect(prev3).toEqual([
 					{
@@ -186,14 +216,15 @@ if ("bun" in process.versions) {
 			});
 
 			test("when called getting the last page", async () => {
-				const last3 = await q(
-					{
+				const last3 = await query({
+					options: {
 						tableName,
 						pagination: { after: "00000001-0000-0004-0000-000000000004" },
 						orderBy: undefined,
 					},
-					"id",
-				);
+					extraField: "id",
+					sql,
+				});
 
 				expect(last3).toEqual([
 					{
@@ -222,16 +253,13 @@ if ("bun" in process.versions) {
 		describe("given arbitrary order, asc", () => {
 			let sql: SQL;
 			let tableName: string;
-			let q: TestDataQuery<"name">;
 
 			beforeAll(async () => {
 				sql = new SQL(dbUrl);
 				tableName = "data-bun-arbitrary-ordering-asc";
-				q = await paginationTestData({
-					escapeIdentifier: (input) => sql(input),
+				await paginationTestData({
 					sql: (query, ...args) => sql(query, ...args),
-					adapter: bunAdapter,
-					tableName,
+					tableName: sql(tableName),
 				});
 			});
 
@@ -240,14 +268,15 @@ if ("bun" in process.versions) {
 			});
 
 			test("when called getting first page", async () => {
-				const first3 = await q(
-					{
+				const first3 = await query({
+					options: {
 						tableName,
 						pagination: undefined,
 						orderBy: { column: "name", order: "asc" },
 					},
-					"name",
-				);
+					extraField: "name",
+					sql,
+				});
 
 				expect(first3).toEqual([
 					{
@@ -275,14 +304,15 @@ if ("bun" in process.versions) {
 			});
 
 			test("when called getting second page", async () => {
-				const next3 = await q(
-					{
+				const next3 = await query({
+					options: {
 						tableName,
 						pagination: { after: "00000001-0000-0003-0000-000000000003,CCCC" },
 						orderBy: { column: "name", order: "asc" },
 					},
-					"name",
-				);
+					extraField: "name",
+					sql,
+				});
 
 				expect(next3).toEqual([
 					{
@@ -310,23 +340,25 @@ if ("bun" in process.versions) {
 			});
 
 			test("when called getting back to first page", async () => {
-				const first3 = await q(
-					{
+				const first3 = await query({
+					options: {
 						tableName,
 						pagination: undefined,
 						orderBy: { column: "name", order: "asc" },
 					},
-					"name",
-				);
+					extraField: "name",
+					sql,
+				});
 
-				const prev3 = await q(
-					{
+				const prev3 = await query({
+					options: {
 						tableName,
 						pagination: { before: "00000001-0000-0004-0000-000000000004,DDDD" },
 						orderBy: { column: "name", order: "asc" },
 					},
-					"name",
-				);
+					extraField: "name",
+					sql,
+				});
 
 				expect(prev3).toEqual(first3.toReversed());
 				expect(toSorted(prev3, { column: "name", order: "asc" })).toEqual(
@@ -339,14 +371,15 @@ if ("bun" in process.versions) {
 			// the fact that the previous page should be actually be done thanks to
 			// before/after)
 			test("when called getting back to middle page", async () => {
-				const prev3 = await q(
-					{
+				const prev3 = await query({
+					options: {
 						tableName,
 						pagination: { before: "00000001-0000-0005-0000-000000000005,EEEE" },
 						orderBy: { column: "name", order: "asc" },
 					},
-					"name",
-				);
+					extraField: "name",
+					sql,
+				});
 
 				expect(prev3).toEqual(
 					[
@@ -393,14 +426,15 @@ if ("bun" in process.versions) {
 			});
 
 			test("when called getting the last page", async () => {
-				const last3 = await q(
-					{
+				const last3 = await query({
+					options: {
 						tableName,
 						pagination: { after: "00000001-0000-0006-0000-000000000006,FFFF" },
 						orderBy: { column: "name", order: "asc" },
 					},
-					"name",
-				);
+					extraField: "name",
+					sql,
+				});
 
 				expect(last3).toEqual([
 					{
@@ -431,16 +465,13 @@ if ("bun" in process.versions) {
 		describe("given arbitrary order, desc", () => {
 			let sql: SQL;
 			let tableName: string;
-			let q: TestDataQuery<"name">;
 
 			beforeAll(async () => {
 				sql = new SQL(dbUrl);
 				tableName = "data-bun-arbitrary-ordering-desc";
-				q = await paginationTestData({
-					escapeIdentifier: (input) => sql(input),
+				await paginationTestData({
 					sql: (query, ...args) => sql(query, ...args),
-					adapter: bunAdapter,
-					tableName,
+					tableName: sql(tableName),
 				});
 			});
 
@@ -449,14 +480,15 @@ if ("bun" in process.versions) {
 			});
 
 			test("when called getting first page", async () => {
-				const first3 = await q(
-					{
+				const first3 = await query({
+					options: {
 						tableName,
 						pagination: undefined,
 						orderBy: { column: "name", order: "desc" },
 					},
-					"name",
-				);
+					extraField: "name",
+					sql,
+				});
 
 				expect(first3).toEqual([
 					{
@@ -484,14 +516,15 @@ if ("bun" in process.versions) {
 			});
 
 			test("when called getting second page", async () => {
-				const next3 = await q(
-					{
+				const next3 = await query({
+					options: {
 						tableName,
 						pagination: { after: "00000001-0000-0007-0000-000000000007,GGGG" },
 						orderBy: { column: "name", order: "desc" },
 					},
-					"name",
-				);
+					extraField: "name",
+					sql,
+				});
 
 				expect(next3).toEqual([
 					{
@@ -519,23 +552,25 @@ if ("bun" in process.versions) {
 			});
 
 			test("when called getting back to first page", async () => {
-				const first3 = await q(
-					{
+				const first3 = await query({
+					options: {
 						tableName,
 						pagination: undefined,
 						orderBy: { column: "name", order: "desc" },
 					},
-					"name",
-				);
+					extraField: "name",
+					sql,
+				});
 
-				const prev3 = await q(
-					{
+				const prev3 = await query({
+					options: {
 						tableName,
 						pagination: { before: "00000001-0000-0006-0000-000000000006,FFFF" },
 						orderBy: { column: "name", order: "desc" },
 					},
-					"name",
-				);
+					extraField: "name",
+					sql,
+				});
 
 				expect(prev3).toEqual(first3.toReversed());
 				expect(toSorted(prev3, { column: "name", order: "desc" })).toEqual(
@@ -548,14 +583,15 @@ if ("bun" in process.versions) {
 			// the fact that the previous page should be actually be done thanks to
 			// before/after)
 			test("when called getting back to middle page", async () => {
-				const prev3 = await q(
-					{
+				const prev3 = await query({
+					options: {
 						tableName,
 						pagination: { before: "00000001-0000-0005-0000-000000000005,EEEE" },
 						orderBy: { column: "name", order: "desc" },
 					},
-					"name",
-				);
+					extraField: "name",
+					sql,
+				});
 
 				expect(prev3).toEqual(
 					[
@@ -602,14 +638,15 @@ if ("bun" in process.versions) {
 			});
 
 			test("when called getting the last page", async () => {
-				const last3 = await q(
-					{
+				const last3 = await query({
+					options: {
 						tableName,
 						pagination: { after: "00000001-0000-0004-0000-000000000004,DDDD" },
 						orderBy: { column: "name", order: "desc" },
 					},
-					"name",
-				);
+					extraField: "name",
+					sql,
+				});
 
 				expect(last3).toEqual([
 					{

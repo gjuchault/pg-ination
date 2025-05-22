@@ -1,5 +1,4 @@
-import { type PaginateOptions, paginate } from "../../paginate.ts";
-import type { Adapter } from "../index.ts";
+import type { PaginateOptions } from "../../paginate.ts";
 
 export interface PaginationQueryData {
 	cursor: string;
@@ -18,26 +17,16 @@ export type TestDataQuery<T extends string> = (
 	})[]
 >;
 
-export async function paginationTestData<
-	Fragment,
-	Identifier,
-	T extends string,
->({
-	escapeIdentifier,
+export async function paginationTestData<Fragment, Identifier>({
 	sql,
-	adapter,
-	tableName: rawTableName,
+	tableName,
 }: {
-	escapeIdentifier: (input: string) => Identifier;
 	sql: (
 		query: TemplateStringsArray,
 		...args: (Fragment | Identifier)[]
 	) => Promise<unknown>;
-	adapter: Adapter<Fragment>;
-	tableName: string;
-}): Promise<TestDataQuery<T>> {
-	const tableName = escapeIdentifier(rawTableName);
-
+	tableName: Identifier;
+}): Promise<void> {
 	await sql`
 		create table if not exists ${tableName} (
 			"id" uuid primary key,
@@ -61,34 +50,4 @@ export async function paginationTestData<
 			('00000001-0000-0009-0000-000000000009', 'IIII', '2025-05-09 10:11:08.000+00')
 		on conflict do nothing
 	`;
-
-	return async (options: PaginateOptions, extraField?: T) => {
-		const result = paginate(options);
-		const adapterResult = adapter(options, result);
-
-		if (extraField !== undefined) {
-			return (await sql`
-				select
-					${adapterResult.cursor} as "cursor",
-					${adapterResult.hasNextPage} as "hasNextPage",
-					${adapterResult.hasPreviousPage} as "hasPreviousPage",
-					${escapeIdentifier(extraField)}
-				from ${tableName}
-				where ${adapterResult.filter}
-				order by ${adapterResult.order}
-				limit 3
-			`) as ReturnType<TestDataQuery<T>>;
-		}
-
-		return (await sql`
-			select
-				${adapterResult.cursor} as "cursor",
-				${adapterResult.hasNextPage} as "hasNextPage",
-				${adapterResult.hasPreviousPage} as "hasPreviousPage"
-			from ${tableName}
-			where ${adapterResult.filter}
-			order by ${adapterResult.order}
-			limit 3
-		`) as ReturnType<TestDataQuery<T>>;
-	};
 }
