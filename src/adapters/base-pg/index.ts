@@ -1,6 +1,8 @@
-import { escapeIdentifier, escapeLiteral } from "pg/lib/utils.js";
+import pgUtils from "pg/lib/utils.js";
 import type { PaginateOptions, PaginateResult } from "../../paginate.ts";
 import type { AdapterResult } from "../index.ts";
+
+const { escapeIdentifier, escapeLiteral } = pgUtils;
 
 export function basePgAdapter(
 	options: PaginateOptions,
