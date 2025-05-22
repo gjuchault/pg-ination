@@ -1,36 +1,34 @@
-import type { SQL } from "bun";
+import { SQL } from "bun";
 
 import { toSorted } from "../../sort.ts";
 import { paginationTestData } from "./helpers.ts";
 import { paginate, type PaginateOptions } from "../../paginate.ts";
+import { bunAdapter } from "../bun.ts";
 
-if ("bun" in process.versions) {
-	// biome-ignore lint/complexity/useLiteralKeys: noPropertyAccessFromIndexSignature
-	const dbUrl = process.env["DB_URL"];
+// biome-ignore lint/complexity/useLiteralKeys: noPropertyAccessFromIndexSignature
+const dbUrl = process.env["DB_URL"];
 
-	if (dbUrl === undefined) {
-		throw new Error("DB_URL is not set");
-	}
+if (dbUrl === undefined) {
+	throw new Error("DB_URL is not set");
+}
 
-	const { afterAll, beforeAll, describe, expect, test } = await import(
-		"bun:test"
-	);
-	const { SQL } = await import("bun");
-	const { bunAdapter } = await import("../bun.ts");
+const { afterAll, beforeAll, describe, expect, test } = await import(
+	"bun:test"
+);
 
-	async function query({
-		sql,
-		options,
-		extraField,
-	}: {
-		sql: SQL;
-		options: PaginateOptions;
-		extraField?: string;
-	}): Promise<unknown[]> {
-		const result = paginate(options);
-		const adapterResult = bunAdapter(options, result);
+async function query({
+	sql,
+	options,
+	extraField,
+}: {
+	sql: SQL;
+	options: PaginateOptions;
+	extraField?: string;
+}): Promise<unknown[]> {
+	const result = paginate(options);
+	const adapterResult = bunAdapter(options, result);
 
-		const data = await sql`
+	const data = await sql`
 			select
 				${adapterResult.cursor} as "cursor",
 				${adapterResult.hasNextPage} as "hasNextPage",
@@ -42,636 +40,625 @@ if ("bun" in process.versions) {
 			limit 3
 		`;
 
-		return data;
-	}
+	return data;
+}
 
-	describe("bunAdapter", async () => {
-		describe("given no ordering", () => {
-			let sql: SQL;
-			let tableName: string;
+describe("bunAdapter", async () => {
+	describe("given no ordering", () => {
+		let sql: SQL;
+		let tableName: string;
 
-			beforeAll(async () => {
-				sql = new SQL(dbUrl);
-				tableName = "data-bun-no-ordering";
-				await paginationTestData({
-					sql: (query, ...args) => sql(query, ...args),
-					tableName: sql(tableName),
-				});
-			});
-
-			afterAll(async () => {
-				await sql.close();
-			});
-
-			test("when called getting first page", async () => {
-				const first3 = await query({
-					options: {
-						tableName,
-						pagination: undefined,
-						orderBy: undefined,
-					},
-					extraField: "id",
-					sql,
-				});
-
-				expect(first3).toEqual([
-					{
-						id: "00000001-0000-0009-0000-000000000009",
-						cursor: "00000001-0000-0009-0000-000000000009",
-						hasNextPage: true,
-						hasPreviousPage: false,
-					},
-					{
-						id: "00000001-0000-0008-0000-000000000008",
-						cursor: "00000001-0000-0008-0000-000000000008",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						id: "00000001-0000-0007-0000-000000000007",
-						cursor: "00000001-0000-0007-0000-000000000007",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-				]);
-
-				expect(toSorted(first3)).toEqual(first3);
-			});
-
-			test("when called getting second page", async () => {
-				const next3 = await query({
-					options: {
-						tableName,
-						pagination: { after: "00000001-0000-0007-0000-000000000007" },
-						orderBy: undefined,
-					},
-					extraField: "id",
-					sql,
-				});
-
-				expect(next3).toEqual([
-					{
-						id: "00000001-0000-0006-0000-000000000006",
-						cursor: "00000001-0000-0006-0000-000000000006",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						id: "00000001-0000-0005-0000-000000000005",
-						cursor: "00000001-0000-0005-0000-000000000005",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						id: "00000001-0000-0004-0000-000000000004",
-						cursor: "00000001-0000-0004-0000-000000000004",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-				]);
-
-				expect(toSorted(next3)).toEqual(next3);
-			});
-
-			test("when called getting back to first page", async () => {
-				const first3 = await query({
-					options: {
-						tableName,
-						pagination: undefined,
-						orderBy: undefined,
-					},
-					extraField: "id",
-					sql,
-				});
-
-				const prev3 = await query({
-					options: {
-						tableName,
-						pagination: { before: "00000001-0000-0006-0000-000000000006" },
-						orderBy: undefined,
-					},
-					extraField: "id",
-					sql,
-				});
-
-				expect(prev3).toEqual(first3.toReversed());
-				expect(toSorted(prev3)).toEqual(first3);
-			});
-
-			// this test ensures the sorting is not inferring with the pagination
-			// (ie. that by returning the first page because of the ordering hides
-			// the fact that the previous page should be actually be done thanks to
-			// before/after)
-			test("when called getting back to middle page", async () => {
-				const prev3 = await query({
-					options: {
-						tableName,
-						pagination: { before: "00000001-0000-0005-0000-000000000005" },
-						orderBy: undefined,
-					},
-					extraField: "id",
-					sql,
-				});
-
-				expect(prev3).toEqual([
-					{
-						id: "00000001-0000-0006-0000-000000000006",
-						cursor: "00000001-0000-0006-0000-000000000006",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						id: "00000001-0000-0007-0000-000000000007",
-						cursor: "00000001-0000-0007-0000-000000000007",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						id: "00000001-0000-0008-0000-000000000008",
-						cursor: "00000001-0000-0008-0000-000000000008",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-				]);
-				expect(toSorted(prev3)).toEqual([
-					{
-						id: "00000001-0000-0008-0000-000000000008",
-						cursor: "00000001-0000-0008-0000-000000000008",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						id: "00000001-0000-0007-0000-000000000007",
-						cursor: "00000001-0000-0007-0000-000000000007",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						id: "00000001-0000-0006-0000-000000000006",
-						cursor: "00000001-0000-0006-0000-000000000006",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-				]);
-			});
-
-			test("when called getting the last page", async () => {
-				const last3 = await query({
-					options: {
-						tableName,
-						pagination: { after: "00000001-0000-0004-0000-000000000004" },
-						orderBy: undefined,
-					},
-					extraField: "id",
-					sql,
-				});
-
-				expect(last3).toEqual([
-					{
-						id: "00000001-0000-0003-0000-000000000003",
-						cursor: "00000001-0000-0003-0000-000000000003",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						id: "00000001-0000-0002-0000-000000000002",
-						cursor: "00000001-0000-0002-0000-000000000002",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						id: "00000001-0000-0001-0000-000000000001",
-						cursor: "00000001-0000-0001-0000-000000000001",
-						hasNextPage: false,
-						hasPreviousPage: true,
-					},
-				]);
-				expect(toSorted(last3)).toEqual(last3);
+		beforeAll(async () => {
+			sql = new SQL(dbUrl);
+			tableName = "data-bun-no-ordering";
+			await paginationTestData({
+				sql: (query, ...args) => sql(query, ...args),
+				tableName: sql(tableName),
 			});
 		});
 
-		describe("given arbitrary order, asc", () => {
-			let sql: SQL;
-			let tableName: string;
-
-			beforeAll(async () => {
-				sql = new SQL(dbUrl);
-				tableName = "data-bun-arbitrary-ordering-asc";
-				await paginationTestData({
-					sql: (query, ...args) => sql(query, ...args),
-					tableName: sql(tableName),
-				});
-			});
-
-			afterAll(async () => {
-				await sql.close();
-			});
-
-			test("when called getting first page", async () => {
-				const first3 = await query({
-					options: {
-						tableName,
-						pagination: undefined,
-						orderBy: { column: "name", order: "asc" },
-					},
-					extraField: "name",
-					sql,
-				});
-
-				expect(first3).toEqual([
-					{
-						name: "AAAA",
-						cursor: "00000001-0000-0001-0000-000000000001,AAAA",
-						hasNextPage: true,
-						hasPreviousPage: false,
-					},
-					{
-						name: "BBBB",
-						cursor: "00000001-0000-0002-0000-000000000002,BBBB",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						name: "CCCC",
-						cursor: "00000001-0000-0003-0000-000000000003,CCCC",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-				]);
-				expect(toSorted(first3, { column: "name", order: "asc" })).toEqual(
-					first3,
-				);
-			});
-
-			test("when called getting second page", async () => {
-				const next3 = await query({
-					options: {
-						tableName,
-						pagination: { after: "00000001-0000-0003-0000-000000000003,CCCC" },
-						orderBy: { column: "name", order: "asc" },
-					},
-					extraField: "name",
-					sql,
-				});
-
-				expect(next3).toEqual([
-					{
-						name: "DDDD",
-						cursor: "00000001-0000-0004-0000-000000000004,DDDD",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						name: "EEEE",
-						cursor: "00000001-0000-0005-0000-000000000005,EEEE",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						name: "FFFF",
-						cursor: "00000001-0000-0006-0000-000000000006,FFFF",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-				]);
-				expect(toSorted(next3, { column: "name", order: "asc" })).toEqual(
-					next3,
-				);
-			});
-
-			test("when called getting back to first page", async () => {
-				const first3 = await query({
-					options: {
-						tableName,
-						pagination: undefined,
-						orderBy: { column: "name", order: "asc" },
-					},
-					extraField: "name",
-					sql,
-				});
-
-				const prev3 = await query({
-					options: {
-						tableName,
-						pagination: { before: "00000001-0000-0004-0000-000000000004,DDDD" },
-						orderBy: { column: "name", order: "asc" },
-					},
-					extraField: "name",
-					sql,
-				});
-
-				expect(prev3).toEqual(first3.toReversed());
-				expect(toSorted(prev3, { column: "name", order: "asc" })).toEqual(
-					first3,
-				);
-			});
-
-			// this test ensures the sorting is not inferring with the pagination
-			// (ie. that by returning the first page because of the ordering hides
-			// the fact that the previous page should be actually be done thanks to
-			// before/after)
-			test("when called getting back to middle page", async () => {
-				const prev3 = await query({
-					options: {
-						tableName,
-						pagination: { before: "00000001-0000-0005-0000-000000000005,EEEE" },
-						orderBy: { column: "name", order: "asc" },
-					},
-					extraField: "name",
-					sql,
-				});
-
-				expect(prev3).toEqual(
-					[
-						{
-							name: "BBBB",
-							cursor: "00000001-0000-0002-0000-000000000002,BBBB",
-							hasNextPage: true,
-							hasPreviousPage: true,
-						},
-						{
-							name: "CCCC",
-							cursor: "00000001-0000-0003-0000-000000000003,CCCC",
-							hasNextPage: true,
-							hasPreviousPage: true,
-						},
-						{
-							name: "DDDD",
-							cursor: "00000001-0000-0004-0000-000000000004,DDDD",
-							hasNextPage: true,
-							hasPreviousPage: true,
-						},
-					].toReversed(),
-				);
-				expect(toSorted(prev3, { column: "name", order: "asc" })).toEqual([
-					{
-						name: "BBBB",
-						cursor: "00000001-0000-0002-0000-000000000002,BBBB",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						name: "CCCC",
-						cursor: "00000001-0000-0003-0000-000000000003,CCCC",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						name: "DDDD",
-						cursor: "00000001-0000-0004-0000-000000000004,DDDD",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-				]);
-			});
-
-			test("when called getting the last page", async () => {
-				const last3 = await query({
-					options: {
-						tableName,
-						pagination: { after: "00000001-0000-0006-0000-000000000006,FFFF" },
-						orderBy: { column: "name", order: "asc" },
-					},
-					extraField: "name",
-					sql,
-				});
-
-				expect(last3).toEqual([
-					{
-						name: "GGGG",
-						cursor: "00000001-0000-0007-0000-000000000007,GGGG",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						name: "HHHH",
-						cursor: "00000001-0000-0008-0000-000000000008,HHHH",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						name: "IIII",
-						cursor: "00000001-0000-0009-0000-000000000009,IIII",
-						hasNextPage: false,
-						hasPreviousPage: true,
-					},
-				]);
-				expect(toSorted(last3, { column: "name", order: "asc" })).toEqual(
-					last3,
-				);
-			});
+		afterAll(async () => {
+			await sql.close();
 		});
 
-		describe("given arbitrary order, desc", () => {
-			let sql: SQL;
-			let tableName: string;
-
-			beforeAll(async () => {
-				sql = new SQL(dbUrl);
-				tableName = "data-bun-arbitrary-ordering-desc";
-				await paginationTestData({
-					sql: (query, ...args) => sql(query, ...args),
-					tableName: sql(tableName),
-				});
+		test("when called getting first page", async () => {
+			const first3 = await query({
+				options: {
+					tableName,
+					pagination: undefined,
+					orderBy: undefined,
+				},
+				extraField: "id",
+				sql,
 			});
 
-			afterAll(async () => {
-				await sql.close();
+			expect(first3).toEqual([
+				{
+					id: "00000001-0000-0009-0000-000000000009",
+					cursor: "00000001-0000-0009-0000-000000000009",
+					hasNextPage: true,
+					hasPreviousPage: false,
+				},
+				{
+					id: "00000001-0000-0008-0000-000000000008",
+					cursor: "00000001-0000-0008-0000-000000000008",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					id: "00000001-0000-0007-0000-000000000007",
+					cursor: "00000001-0000-0007-0000-000000000007",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
+
+			expect(toSorted(first3)).toEqual(first3);
+		});
+
+		test("when called getting second page", async () => {
+			const next3 = await query({
+				options: {
+					tableName,
+					pagination: { after: "00000001-0000-0007-0000-000000000007" },
+					orderBy: undefined,
+				},
+				extraField: "id",
+				sql,
 			});
 
-			test("when called getting first page", async () => {
-				const first3 = await query({
-					options: {
-						tableName,
-						pagination: undefined,
-						orderBy: { column: "name", order: "desc" },
-					},
-					extraField: "name",
-					sql,
-				});
+			expect(next3).toEqual([
+				{
+					id: "00000001-0000-0006-0000-000000000006",
+					cursor: "00000001-0000-0006-0000-000000000006",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					id: "00000001-0000-0005-0000-000000000005",
+					cursor: "00000001-0000-0005-0000-000000000005",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					id: "00000001-0000-0004-0000-000000000004",
+					cursor: "00000001-0000-0004-0000-000000000004",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
 
-				expect(first3).toEqual([
-					{
-						name: "IIII",
-						cursor: "00000001-0000-0009-0000-000000000009,IIII",
-						hasNextPage: true,
-						hasPreviousPage: false,
-					},
-					{
-						name: "HHHH",
-						cursor: "00000001-0000-0008-0000-000000000008,HHHH",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						name: "GGGG",
-						cursor: "00000001-0000-0007-0000-000000000007,GGGG",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-				]);
-				expect(toSorted(first3, { column: "name", order: "desc" })).toEqual(
-					first3,
-				);
+			expect(toSorted(next3)).toEqual(next3);
+		});
+
+		test("when called getting back to first page", async () => {
+			const first3 = await query({
+				options: {
+					tableName,
+					pagination: undefined,
+					orderBy: undefined,
+				},
+				extraField: "id",
+				sql,
 			});
 
-			test("when called getting second page", async () => {
-				const next3 = await query({
-					options: {
-						tableName,
-						pagination: { after: "00000001-0000-0007-0000-000000000007,GGGG" },
-						orderBy: { column: "name", order: "desc" },
-					},
-					extraField: "name",
-					sql,
-				});
-
-				expect(next3).toEqual([
-					{
-						name: "FFFF",
-						cursor: "00000001-0000-0006-0000-000000000006,FFFF",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						name: "EEEE",
-						cursor: "00000001-0000-0005-0000-000000000005,EEEE",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						name: "DDDD",
-						cursor: "00000001-0000-0004-0000-000000000004,DDDD",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-				]);
-				expect(toSorted(next3, { column: "name", order: "desc" })).toEqual(
-					next3,
-				);
+			const prev3 = await query({
+				options: {
+					tableName,
+					pagination: { before: "00000001-0000-0006-0000-000000000006" },
+					orderBy: undefined,
+				},
+				extraField: "id",
+				sql,
 			});
 
-			test("when called getting back to first page", async () => {
-				const first3 = await query({
-					options: {
-						tableName,
-						pagination: undefined,
-						orderBy: { column: "name", order: "desc" },
-					},
-					extraField: "name",
-					sql,
-				});
+			expect(prev3).toEqual(first3.toReversed());
+			expect(toSorted(prev3)).toEqual(first3);
+		});
 
-				const prev3 = await query({
-					options: {
-						tableName,
-						pagination: { before: "00000001-0000-0006-0000-000000000006,FFFF" },
-						orderBy: { column: "name", order: "desc" },
-					},
-					extraField: "name",
-					sql,
-				});
-
-				expect(prev3).toEqual(first3.toReversed());
-				expect(toSorted(prev3, { column: "name", order: "desc" })).toEqual(
-					first3,
-				);
+		// this test ensures the sorting is not inferring with the pagination
+		// (ie. that by returning the first page because of the ordering hides
+		// the fact that the previous page should be actually be done thanks to
+		// before/after)
+		test("when called getting back to middle page", async () => {
+			const prev3 = await query({
+				options: {
+					tableName,
+					pagination: { before: "00000001-0000-0005-0000-000000000005" },
+					orderBy: undefined,
+				},
+				extraField: "id",
+				sql,
 			});
 
-			// this test ensures the sorting is not inferring with the pagination
-			// (ie. that by returning the first page because of the ordering hides
-			// the fact that the previous page should be actually be done thanks to
-			// before/after)
-			test("when called getting back to middle page", async () => {
-				const prev3 = await query({
-					options: {
-						tableName,
-						pagination: { before: "00000001-0000-0005-0000-000000000005,EEEE" },
-						orderBy: { column: "name", order: "desc" },
-					},
-					extraField: "name",
-					sql,
-				});
+			expect(prev3).toEqual([
+				{
+					id: "00000001-0000-0006-0000-000000000006",
+					cursor: "00000001-0000-0006-0000-000000000006",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					id: "00000001-0000-0007-0000-000000000007",
+					cursor: "00000001-0000-0007-0000-000000000007",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					id: "00000001-0000-0008-0000-000000000008",
+					cursor: "00000001-0000-0008-0000-000000000008",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
+			expect(toSorted(prev3)).toEqual([
+				{
+					id: "00000001-0000-0008-0000-000000000008",
+					cursor: "00000001-0000-0008-0000-000000000008",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					id: "00000001-0000-0007-0000-000000000007",
+					cursor: "00000001-0000-0007-0000-000000000007",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					id: "00000001-0000-0006-0000-000000000006",
+					cursor: "00000001-0000-0006-0000-000000000006",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
+		});
 
-				expect(prev3).toEqual(
-					[
-						{
-							name: "HHHH",
-							cursor: "00000001-0000-0008-0000-000000000008,HHHH",
-							hasNextPage: true,
-							hasPreviousPage: true,
-						},
-						{
-							name: "GGGG",
-							cursor: "00000001-0000-0007-0000-000000000007,GGGG",
-							hasNextPage: true,
-							hasPreviousPage: true,
-						},
-						{
-							name: "FFFF",
-							cursor: "00000001-0000-0006-0000-000000000006,FFFF",
-							hasNextPage: true,
-							hasPreviousPage: true,
-						},
-					].toReversed(),
-				);
-				expect(toSorted(prev3, { column: "name", order: "desc" })).toEqual([
-					{
-						name: "HHHH",
-						cursor: "00000001-0000-0008-0000-000000000008,HHHH",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						name: "GGGG",
-						cursor: "00000001-0000-0007-0000-000000000007,GGGG",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						name: "FFFF",
-						cursor: "00000001-0000-0006-0000-000000000006,FFFF",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-				]);
+		test("when called getting the last page", async () => {
+			const last3 = await query({
+				options: {
+					tableName,
+					pagination: { after: "00000001-0000-0004-0000-000000000004" },
+					orderBy: undefined,
+				},
+				extraField: "id",
+				sql,
 			});
 
-			test("when called getting the last page", async () => {
-				const last3 = await query({
-					options: {
-						tableName,
-						pagination: { after: "00000001-0000-0004-0000-000000000004,DDDD" },
-						orderBy: { column: "name", order: "desc" },
-					},
-					extraField: "name",
-					sql,
-				});
-
-				expect(last3).toEqual([
-					{
-						name: "CCCC",
-						cursor: "00000001-0000-0003-0000-000000000003,CCCC",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						name: "BBBB",
-						cursor: "00000001-0000-0002-0000-000000000002,BBBB",
-						hasNextPage: true,
-						hasPreviousPage: true,
-					},
-					{
-						name: "AAAA",
-						cursor: "00000001-0000-0001-0000-000000000001,AAAA",
-						hasNextPage: false,
-						hasPreviousPage: true,
-					},
-				]);
-				expect(toSorted(last3, { column: "name", order: "desc" })).toEqual(
-					last3,
-				);
-			});
+			expect(last3).toEqual([
+				{
+					id: "00000001-0000-0003-0000-000000000003",
+					cursor: "00000001-0000-0003-0000-000000000003",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					id: "00000001-0000-0002-0000-000000000002",
+					cursor: "00000001-0000-0002-0000-000000000002",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					id: "00000001-0000-0001-0000-000000000001",
+					cursor: "00000001-0000-0001-0000-000000000001",
+					hasNextPage: false,
+					hasPreviousPage: true,
+				},
+			]);
+			expect(toSorted(last3)).toEqual(last3);
 		});
 	});
-}
+
+	describe("given arbitrary order, asc", () => {
+		let sql: SQL;
+		let tableName: string;
+
+		beforeAll(async () => {
+			sql = new SQL(dbUrl);
+			tableName = "data-bun-arbitrary-ordering-asc";
+			await paginationTestData({
+				sql: (query, ...args) => sql(query, ...args),
+				tableName: sql(tableName),
+			});
+		});
+
+		afterAll(async () => {
+			await sql.close();
+		});
+
+		test("when called getting first page", async () => {
+			const first3 = await query({
+				options: {
+					tableName,
+					pagination: undefined,
+					orderBy: { column: "name", order: "asc" },
+				},
+				extraField: "name",
+				sql,
+			});
+
+			expect(first3).toEqual([
+				{
+					name: "AAAA",
+					cursor: "00000001-0000-0001-0000-000000000001,AAAA",
+					hasNextPage: true,
+					hasPreviousPage: false,
+				},
+				{
+					name: "BBBB",
+					cursor: "00000001-0000-0002-0000-000000000002,BBBB",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					name: "CCCC",
+					cursor: "00000001-0000-0003-0000-000000000003,CCCC",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
+			expect(toSorted(first3, { column: "name", order: "asc" })).toEqual(
+				first3,
+			);
+		});
+
+		test("when called getting second page", async () => {
+			const next3 = await query({
+				options: {
+					tableName,
+					pagination: { after: "00000001-0000-0003-0000-000000000003,CCCC" },
+					orderBy: { column: "name", order: "asc" },
+				},
+				extraField: "name",
+				sql,
+			});
+
+			expect(next3).toEqual([
+				{
+					name: "DDDD",
+					cursor: "00000001-0000-0004-0000-000000000004,DDDD",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					name: "EEEE",
+					cursor: "00000001-0000-0005-0000-000000000005,EEEE",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					name: "FFFF",
+					cursor: "00000001-0000-0006-0000-000000000006,FFFF",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
+			expect(toSorted(next3, { column: "name", order: "asc" })).toEqual(next3);
+		});
+
+		test("when called getting back to first page", async () => {
+			const first3 = await query({
+				options: {
+					tableName,
+					pagination: undefined,
+					orderBy: { column: "name", order: "asc" },
+				},
+				extraField: "name",
+				sql,
+			});
+
+			const prev3 = await query({
+				options: {
+					tableName,
+					pagination: { before: "00000001-0000-0004-0000-000000000004,DDDD" },
+					orderBy: { column: "name", order: "asc" },
+				},
+				extraField: "name",
+				sql,
+			});
+
+			expect(prev3).toEqual(first3.toReversed());
+			expect(toSorted(prev3, { column: "name", order: "asc" })).toEqual(first3);
+		});
+
+		// this test ensures the sorting is not inferring with the pagination
+		// (ie. that by returning the first page because of the ordering hides
+		// the fact that the previous page should be actually be done thanks to
+		// before/after)
+		test("when called getting back to middle page", async () => {
+			const prev3 = await query({
+				options: {
+					tableName,
+					pagination: { before: "00000001-0000-0005-0000-000000000005,EEEE" },
+					orderBy: { column: "name", order: "asc" },
+				},
+				extraField: "name",
+				sql,
+			});
+
+			expect(prev3).toEqual(
+				[
+					{
+						name: "BBBB",
+						cursor: "00000001-0000-0002-0000-000000000002,BBBB",
+						hasNextPage: true,
+						hasPreviousPage: true,
+					},
+					{
+						name: "CCCC",
+						cursor: "00000001-0000-0003-0000-000000000003,CCCC",
+						hasNextPage: true,
+						hasPreviousPage: true,
+					},
+					{
+						name: "DDDD",
+						cursor: "00000001-0000-0004-0000-000000000004,DDDD",
+						hasNextPage: true,
+						hasPreviousPage: true,
+					},
+				].toReversed(),
+			);
+			expect(toSorted(prev3, { column: "name", order: "asc" })).toEqual([
+				{
+					name: "BBBB",
+					cursor: "00000001-0000-0002-0000-000000000002,BBBB",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					name: "CCCC",
+					cursor: "00000001-0000-0003-0000-000000000003,CCCC",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					name: "DDDD",
+					cursor: "00000001-0000-0004-0000-000000000004,DDDD",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
+		});
+
+		test("when called getting the last page", async () => {
+			const last3 = await query({
+				options: {
+					tableName,
+					pagination: { after: "00000001-0000-0006-0000-000000000006,FFFF" },
+					orderBy: { column: "name", order: "asc" },
+				},
+				extraField: "name",
+				sql,
+			});
+
+			expect(last3).toEqual([
+				{
+					name: "GGGG",
+					cursor: "00000001-0000-0007-0000-000000000007,GGGG",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					name: "HHHH",
+					cursor: "00000001-0000-0008-0000-000000000008,HHHH",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					name: "IIII",
+					cursor: "00000001-0000-0009-0000-000000000009,IIII",
+					hasNextPage: false,
+					hasPreviousPage: true,
+				},
+			]);
+			expect(toSorted(last3, { column: "name", order: "asc" })).toEqual(last3);
+		});
+	});
+
+	describe("given arbitrary order, desc", () => {
+		let sql: SQL;
+		let tableName: string;
+
+		beforeAll(async () => {
+			sql = new SQL(dbUrl);
+			tableName = "data-bun-arbitrary-ordering-desc";
+			await paginationTestData({
+				sql: (query, ...args) => sql(query, ...args),
+				tableName: sql(tableName),
+			});
+		});
+
+		afterAll(async () => {
+			await sql.close();
+		});
+
+		test("when called getting first page", async () => {
+			const first3 = await query({
+				options: {
+					tableName,
+					pagination: undefined,
+					orderBy: { column: "name", order: "desc" },
+				},
+				extraField: "name",
+				sql,
+			});
+
+			expect(first3).toEqual([
+				{
+					name: "IIII",
+					cursor: "00000001-0000-0009-0000-000000000009,IIII",
+					hasNextPage: true,
+					hasPreviousPage: false,
+				},
+				{
+					name: "HHHH",
+					cursor: "00000001-0000-0008-0000-000000000008,HHHH",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					name: "GGGG",
+					cursor: "00000001-0000-0007-0000-000000000007,GGGG",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
+			expect(toSorted(first3, { column: "name", order: "desc" })).toEqual(
+				first3,
+			);
+		});
+
+		test("when called getting second page", async () => {
+			const next3 = await query({
+				options: {
+					tableName,
+					pagination: { after: "00000001-0000-0007-0000-000000000007,GGGG" },
+					orderBy: { column: "name", order: "desc" },
+				},
+				extraField: "name",
+				sql,
+			});
+
+			expect(next3).toEqual([
+				{
+					name: "FFFF",
+					cursor: "00000001-0000-0006-0000-000000000006,FFFF",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					name: "EEEE",
+					cursor: "00000001-0000-0005-0000-000000000005,EEEE",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					name: "DDDD",
+					cursor: "00000001-0000-0004-0000-000000000004,DDDD",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
+			expect(toSorted(next3, { column: "name", order: "desc" })).toEqual(next3);
+		});
+
+		test("when called getting back to first page", async () => {
+			const first3 = await query({
+				options: {
+					tableName,
+					pagination: undefined,
+					orderBy: { column: "name", order: "desc" },
+				},
+				extraField: "name",
+				sql,
+			});
+
+			const prev3 = await query({
+				options: {
+					tableName,
+					pagination: { before: "00000001-0000-0006-0000-000000000006,FFFF" },
+					orderBy: { column: "name", order: "desc" },
+				},
+				extraField: "name",
+				sql,
+			});
+
+			expect(prev3).toEqual(first3.toReversed());
+			expect(toSorted(prev3, { column: "name", order: "desc" })).toEqual(
+				first3,
+			);
+		});
+
+		// this test ensures the sorting is not inferring with the pagination
+		// (ie. that by returning the first page because of the ordering hides
+		// the fact that the previous page should be actually be done thanks to
+		// before/after)
+		test("when called getting back to middle page", async () => {
+			const prev3 = await query({
+				options: {
+					tableName,
+					pagination: { before: "00000001-0000-0005-0000-000000000005,EEEE" },
+					orderBy: { column: "name", order: "desc" },
+				},
+				extraField: "name",
+				sql,
+			});
+
+			expect(prev3).toEqual(
+				[
+					{
+						name: "HHHH",
+						cursor: "00000001-0000-0008-0000-000000000008,HHHH",
+						hasNextPage: true,
+						hasPreviousPage: true,
+					},
+					{
+						name: "GGGG",
+						cursor: "00000001-0000-0007-0000-000000000007,GGGG",
+						hasNextPage: true,
+						hasPreviousPage: true,
+					},
+					{
+						name: "FFFF",
+						cursor: "00000001-0000-0006-0000-000000000006,FFFF",
+						hasNextPage: true,
+						hasPreviousPage: true,
+					},
+				].toReversed(),
+			);
+			expect(toSorted(prev3, { column: "name", order: "desc" })).toEqual([
+				{
+					name: "HHHH",
+					cursor: "00000001-0000-0008-0000-000000000008,HHHH",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					name: "GGGG",
+					cursor: "00000001-0000-0007-0000-000000000007,GGGG",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					name: "FFFF",
+					cursor: "00000001-0000-0006-0000-000000000006,FFFF",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
+		});
+
+		test("when called getting the last page", async () => {
+			const last3 = await query({
+				options: {
+					tableName,
+					pagination: { after: "00000001-0000-0004-0000-000000000004,DDDD" },
+					orderBy: { column: "name", order: "desc" },
+				},
+				extraField: "name",
+				sql,
+			});
+
+			expect(last3).toEqual([
+				{
+					name: "CCCC",
+					cursor: "00000001-0000-0003-0000-000000000003,CCCC",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					name: "BBBB",
+					cursor: "00000001-0000-0002-0000-000000000002,BBBB",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					name: "AAAA",
+					cursor: "00000001-0000-0001-0000-000000000001,AAAA",
+					hasNextPage: false,
+					hasPreviousPage: true,
+				},
+			]);
+			expect(toSorted(last3, { column: "name", order: "desc" })).toEqual(last3);
+		});
+	});
+});

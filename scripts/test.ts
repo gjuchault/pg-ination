@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
 import isMain from "is-main";
+import path from "node:path";
+import { glob } from "node:fs/promises";
 
 async function runTests({
 	nodeOptions = [],
@@ -16,6 +18,13 @@ async function runTests({
 }): Promise<void> {
 	const time = Date.now();
 
+	const allTestsFiles = await Array.fromAsync(
+		glob(path.join(process.cwd(), "src/**/*.test.ts")),
+	);
+	const nodeTestsFiles = allTestsFiles
+		.filter((file) => !file.includes("bun.test.ts"))
+		.map((file) => path.relative(process.cwd(), file));
+
 	return new Promise((resolve, reject) => {
 		const nodeProcess = spawn(
 			program,
@@ -25,7 +34,7 @@ async function runTests({
 				"--experimental-strip-types",
 				"--test",
 				...nodeOptions,
-				filesFilter !== "" ? filesFilter : "src/**/*.test.ts",
+				...(filesFilter !== "" ? filesFilter.split(" ") : nodeTestsFiles),
 			],
 			{ stdio: "inherit", env: { ...process.env, ...env } },
 		);
