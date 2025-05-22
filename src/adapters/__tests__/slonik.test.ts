@@ -8,10 +8,10 @@ import {
 	sql,
 } from "slonik";
 
+import { type PaginateOptions, paginate } from "../../paginate.ts";
 import { toSorted } from "../../sort.ts";
 import { slonikAdapter } from "../slonik.ts";
 import { paginationTestData } from "./helpers.ts";
-import { paginate, type PaginateOptions } from "../../paginate.ts";
 
 // biome-ignore lint/complexity/useLiteralKeys: noPropertyAccessFromIndexSignature
 const dbUrl = process.env["DB_URL"];

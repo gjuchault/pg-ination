@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
-import isMain from "is-main";
-import path from "node:path";
 import { glob } from "node:fs/promises";
+import path from "node:path";
+import isMain from "is-main";
 
 async function runTests({
 	nodeOptions = [],
