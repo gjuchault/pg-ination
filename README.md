@@ -211,25 +211,25 @@ const paginateResult = paginate(paginateOptions);
 const adapterResult = xAdapter(paginateOptions, paginateResult);
 
 const result = await query(sql`
-	with "table_sq" as (
-		select
-			"table"."id",
-			"table"."name",
-			"table"."created_at",
-			"joined_table"."foo"
-		from "table"
-		left join "joined_table"
-			on "joined_table"."table_id" = "table"."id"
-	)
-	select
-		*,
-		${adapterResult.cursor} as "cursor",
-		${adapterResult.hasNextPage} as "hasNextPage",
-		${adapterResult.hasPreviousPage} as "hasPreviousPage"
-	from "source_sq"
-	where ${adapterResult.filter}
-	order by ${adapterResult.order}
-	limit 5
+  with "table_sq" as (
+    select
+      "table"."id",
+      "table"."name",
+      "table"."created_at",
+      "joined_table"."foo"
+    from "table"
+    left join "joined_table"
+      on "joined_table"."table_id" = "table"."id"
+  )
+  select
+    *,
+    ${adapterResult.cursor} as "cursor",
+    ${adapterResult.hasNextPage} as "hasNextPage",
+    ${adapterResult.hasPreviousPage} as "hasPreviousPage"
+  from "table_sq"
+  where ${adapterResult.filter}
+  order by ${adapterResult.order}
+  limit 5
 `);
 ```
 
