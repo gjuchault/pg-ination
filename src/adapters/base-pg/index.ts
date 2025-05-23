@@ -22,7 +22,7 @@ export function basePgAdapter(
 
 	const [firstCursor, secondCursor] = result.cursor;
 	if (firstCursor !== undefined && secondCursor !== undefined) {
-		cursor = `${sql_(firstCursor)} || ',' || ${sql_(secondCursor)}`;
+		cursor = `coalesce(${sql_(firstCursor)} || ',', '') || ${sql_(secondCursor)}`;
 	} else if (firstCursor !== undefined) {
 		cursor = `${sql_(firstCursor)}`;
 	}
@@ -62,25 +62,29 @@ function applyFilter(filter: PaginateResult["filter"], sql_: Sql_): string {
 	const { left, right, operator } = filter;
 	if (left.length === 1 && right.length === 1) {
 		if (operator === ">") {
-			return `${sql_(left[0])} > ${sql_(right[0])}`;
+			return `${sql_(left[0], orEmptyStr)} > ${sql_(right[0], orEmptyStr)}`;
 		}
 
-		return `${sql_(left[0])} < ${sql_(right[0])}`;
+		return `${sql_(left[0], orEmptyStr)} < ${sql_(right[0], orEmptyStr)}`;
 	}
 
 	if (left.length === 2 && right.length === 2) {
 		if (operator === ">") {
-			return `(${sql_(left[0])}, ${sql_(left[1])}) > (${sql_(right[0])}, ${sql_(right[1])})`;
+			return `(${sql_(left[0], orEmptyStr)}, ${sql_(left[1], orEmptyStr)}) > (${sql_(right[0], orEmptyStr)}, ${sql_(right[1], orEmptyStr)})`;
 		}
 
-		return `(${sql_(left[0])}, ${sql_(left[1])}) < (${sql_(right[0])}, ${sql_(right[1])})`;
+		return `(${sql_(left[0], orEmptyStr)}, ${sql_(left[1], orEmptyStr)}) < (${sql_(right[0], orEmptyStr)}, ${sql_(right[1], orEmptyStr)})`;
 	}
 
 	throw new Error("No support for more than 1 column ordering");
 }
 
 // this is used as with bun, we should pass identifiers as `${sql(identifier)}` and values as `${value}`
-type Sql_ = (input: string | undefined) => string;
+type Sql_ = (
+	input: string | undefined,
+	wrapper?: (input: string) => string,
+) => string;
+
 function sqlOrLiteral(options: PaginateOptions): Sql_ {
 	const allLiterals = [
 		options.tableName,
@@ -98,20 +102,29 @@ function sqlOrLiteral(options: PaginateOptions): Sql_ {
 		);
 	}
 
-	return (input: string | undefined): string => {
+	return function sql_(
+		input: string | undefined,
+		wrapper: (input: string) => string = (input) => input,
+	): string {
 		if (input === undefined) {
 			throw new Error("No support for undefined");
 		}
 
 		if (allLiterals.includes(input)) {
-			return input
-				.split(".")
-				.map((i) => escapeIdentifier(i))
-				.join(".");
+			return wrapper(
+				input
+					.split(".")
+					.map((i) => escapeIdentifier(i))
+					.join("."),
+			);
 		}
 
-		return escapeLiteral(input);
+		return wrapper(escapeLiteral(input));
 	};
+}
+
+function orEmptyStr(input: string): string {
+	return `coalesce(${input}::text, '')`;
 }
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: not _really_ complex

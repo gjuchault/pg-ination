@@ -6,6 +6,11 @@
 
 A utility to have arbitrary ordering with cursor based pagination, as well as next and previous page checks
 
+**Limitations**:
+
+- You must have a unique, always-increasing `id` field (eg. UUIDv7)
+- You can't use sort by fields that do not come directly from the table (that would be a limitation for the next/previous page). [Example below](#subquery-pattern)
+
 ## Options
 
 ```ts
@@ -192,6 +197,40 @@ const users = toSorted(unsortedUsers, options.orderBy);
 const nextPageCursor = users.at(-1)?.cursor ?? undefined;
 // use with { before: previousPageCursor }
 const previousPageCursor = users.at(0)?.cursor ?? undefined;
+```
+
+### Subquery pattern
+
+```ts
+const paginateOptions: PaginateOptions = {
+  tableName: "table_sq",
+  pagination,
+  orderBy,
+};
+const paginateResult = paginate(paginateOptions);
+const adapterResult = xAdapter(paginateOptions, paginateResult);
+
+const result = await query(sql`
+	with "table_sq" as (
+		select
+			"table"."id",
+			"table"."name",
+			"table"."created_at",
+			"joined_table"."foo"
+		from "table"
+		left join "joined_table"
+			on "joined_table"."table_id" = "table"."id"
+	)
+	select
+		*,
+		${adapterResult.cursor} as "cursor",
+		${adapterResult.hasNextPage} as "hasNextPage",
+		${adapterResult.hasPreviousPage} as "hasPreviousPage"
+	from "source_sq"
+	where ${adapterResult.filter}
+	order by ${adapterResult.order}
+	limit 5
+`);
 ```
 
 ## Why is `toSorted()` needed?
