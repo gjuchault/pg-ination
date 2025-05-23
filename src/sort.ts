@@ -2,20 +2,27 @@ import type { PaginateOptions } from "./paginate.ts";
 
 export interface SortOptions extends Pick<PaginateOptions, "orderBy"> {}
 
-export function toSorted<T>(items: T[], orderBy?: SortOptions["orderBy"]) {
-	if (orderBy === undefined) {
-		return toSorted(items, { column: "id", order: "desc" });
-	}
-
+export function toSorted<T>(
+	items: readonly T[],
+	orderBy?: SortOptions["orderBy"],
+) {
 	return items.toSorted((a, b) => {
-		const aValue = a[orderBy.column as keyof T];
-		const bValue = b[orderBy.column as keyof T];
+		if (!(typeof a === "object" && a !== null && "cursor" in a)) {
+			throw new Error("Expected items to be an array of objects with a cursor");
+		}
+
+		if (!(typeof b === "object" && b !== null && "cursor" in b)) {
+			throw new Error("Expected items to be an array of objects with a cursor");
+		}
+
+		const aValue = a.cursor as number;
+		const bValue = b.cursor as number;
 
 		if (aValue === bValue) {
 			return 0;
 		}
 
 		const comparison = aValue < bValue ? -1 : 1;
-		return orderBy.order === "asc" ? comparison : -comparison;
+		return orderBy?.order === "asc" ? comparison : -comparison;
 	});
 }

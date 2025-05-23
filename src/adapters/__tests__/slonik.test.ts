@@ -303,19 +303,19 @@ await describe("slonikAdapter", async () => {
 			deepEqual(first3, [
 				{
 					name: "AAAA",
-					cursor: "00000001-0000-0001-0000-000000000001,AAAA",
+					cursor: "AAAA,00000001-0000-0001-0000-000000000001",
 					hasNextPage: true,
 					hasPreviousPage: false,
 				},
 				{
 					name: "BBBB",
-					cursor: "00000001-0000-0002-0000-000000000002,BBBB",
+					cursor: "BBBB,00000001-0000-0002-0000-000000000002",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
 				{
 					name: "CCCC",
-					cursor: "00000001-0000-0003-0000-000000000003,CCCC",
+					cursor: "CCCC,00000001-0000-0003-0000-000000000003",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
@@ -328,7 +328,7 @@ await describe("slonikAdapter", async () => {
 				client: pool,
 				options: {
 					tableName,
-					pagination: { after: "00000001-0000-0003-0000-000000000003,CCCC" },
+					pagination: { after: "CCCC,00000001-0000-0003-0000-000000000003" },
 					orderBy: { column: "name", order: "asc" },
 				},
 				extraField: "name",
@@ -337,19 +337,19 @@ await describe("slonikAdapter", async () => {
 			deepEqual(next3, [
 				{
 					name: "DDDD",
-					cursor: "00000001-0000-0004-0000-000000000004,DDDD",
+					cursor: "DDDD,00000001-0000-0004-0000-000000000004",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
 				{
 					name: "EEEE",
-					cursor: "00000001-0000-0005-0000-000000000005,EEEE",
+					cursor: "EEEE,00000001-0000-0005-0000-000000000005",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
 				{
 					name: "FFFF",
-					cursor: "00000001-0000-0006-0000-000000000006,FFFF",
+					cursor: "FFFF,00000001-0000-0006-0000-000000000006",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
@@ -372,7 +372,7 @@ await describe("slonikAdapter", async () => {
 				client: pool,
 				options: {
 					tableName,
-					pagination: { before: "00000001-0000-0004-0000-000000000004,DDDD" },
+					pagination: { before: "DDDD,00000001-0000-0004-0000-000000000004" },
 					orderBy: { column: "name", order: "asc" },
 				},
 				extraField: "name",
@@ -391,7 +391,7 @@ await describe("slonikAdapter", async () => {
 				client: pool,
 				options: {
 					tableName,
-					pagination: { before: "00000001-0000-0005-0000-000000000005,EEEE" },
+					pagination: { before: "EEEE,00000001-0000-0005-0000-000000000005" },
 					orderBy: { column: "name", order: "asc" },
 				},
 				extraField: "name",
@@ -402,19 +402,19 @@ await describe("slonikAdapter", async () => {
 				[
 					{
 						name: "BBBB",
-						cursor: "00000001-0000-0002-0000-000000000002,BBBB",
+						cursor: "BBBB,00000001-0000-0002-0000-000000000002",
 						hasNextPage: true,
 						hasPreviousPage: true,
 					},
 					{
 						name: "CCCC",
-						cursor: "00000001-0000-0003-0000-000000000003,CCCC",
+						cursor: "CCCC,00000001-0000-0003-0000-000000000003",
 						hasNextPage: true,
 						hasPreviousPage: true,
 					},
 					{
 						name: "DDDD",
-						cursor: "00000001-0000-0004-0000-000000000004,DDDD",
+						cursor: "DDDD,00000001-0000-0004-0000-000000000004",
 						hasNextPage: true,
 						hasPreviousPage: true,
 					},
@@ -423,19 +423,19 @@ await describe("slonikAdapter", async () => {
 			deepEqual(toSorted(prev3, { column: "name", order: "asc" }), [
 				{
 					name: "BBBB",
-					cursor: "00000001-0000-0002-0000-000000000002,BBBB",
+					cursor: "BBBB,00000001-0000-0002-0000-000000000002",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
 				{
 					name: "CCCC",
-					cursor: "00000001-0000-0003-0000-000000000003,CCCC",
+					cursor: "CCCC,00000001-0000-0003-0000-000000000003",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
 				{
 					name: "DDDD",
-					cursor: "00000001-0000-0004-0000-000000000004,DDDD",
+					cursor: "DDDD,00000001-0000-0004-0000-000000000004",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
@@ -447,7 +447,7 @@ await describe("slonikAdapter", async () => {
 				client: pool,
 				options: {
 					tableName,
-					pagination: { after: "00000001-0000-0006-0000-000000000006,FFFF" },
+					pagination: { after: "FFFF,00000001-0000-0006-0000-000000000006" },
 					orderBy: { column: "name", order: "asc" },
 				},
 				extraField: "name",
@@ -456,19 +456,19 @@ await describe("slonikAdapter", async () => {
 			deepEqual(last3, [
 				{
 					name: "GGGG",
-					cursor: "00000001-0000-0007-0000-000000000007,GGGG",
+					cursor: "GGGG,00000001-0000-0007-0000-000000000007",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
 				{
 					name: "HHHH",
-					cursor: "00000001-0000-0008-0000-000000000008,HHHH",
+					cursor: "HHHH,00000001-0000-0008-0000-000000000008",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
 				{
 					name: "IIII",
-					cursor: "00000001-0000-0009-0000-000000000009,IIII",
+					cursor: "IIII,00000001-0000-0009-0000-000000000009",
 					hasNextPage: false,
 					hasPreviousPage: true,
 				},
@@ -512,19 +512,19 @@ await describe("slonikAdapter", async () => {
 			deepEqual(first3, [
 				{
 					name: "IIII",
-					cursor: "00000001-0000-0009-0000-000000000009,IIII",
+					cursor: "IIII,00000001-0000-0009-0000-000000000009",
 					hasNextPage: true,
 					hasPreviousPage: false,
 				},
 				{
 					name: "HHHH",
-					cursor: "00000001-0000-0008-0000-000000000008,HHHH",
+					cursor: "HHHH,00000001-0000-0008-0000-000000000008",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
 				{
 					name: "GGGG",
-					cursor: "00000001-0000-0007-0000-000000000007,GGGG",
+					cursor: "GGGG,00000001-0000-0007-0000-000000000007",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
@@ -537,7 +537,7 @@ await describe("slonikAdapter", async () => {
 				client: pool,
 				options: {
 					tableName,
-					pagination: { after: "00000001-0000-0007-0000-000000000007,GGGG" },
+					pagination: { after: "GGGG,00000001-0000-0007-0000-000000000007" },
 					orderBy: { column: "name", order: "desc" },
 				},
 				extraField: "name",
@@ -546,19 +546,19 @@ await describe("slonikAdapter", async () => {
 			deepEqual(next3, [
 				{
 					name: "FFFF",
-					cursor: "00000001-0000-0006-0000-000000000006,FFFF",
+					cursor: "FFFF,00000001-0000-0006-0000-000000000006",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
 				{
 					name: "EEEE",
-					cursor: "00000001-0000-0005-0000-000000000005,EEEE",
+					cursor: "EEEE,00000001-0000-0005-0000-000000000005",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
 				{
 					name: "DDDD",
-					cursor: "00000001-0000-0004-0000-000000000004,DDDD",
+					cursor: "DDDD,00000001-0000-0004-0000-000000000004",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
@@ -581,7 +581,7 @@ await describe("slonikAdapter", async () => {
 				client: pool,
 				options: {
 					tableName,
-					pagination: { before: "00000001-0000-0006-0000-000000000006,FFFF" },
+					pagination: { before: "FFFF,00000001-0000-0006-0000-000000000006" },
 					orderBy: { column: "name", order: "desc" },
 				},
 				extraField: "name",
@@ -600,7 +600,7 @@ await describe("slonikAdapter", async () => {
 				client: pool,
 				options: {
 					tableName,
-					pagination: { before: "00000001-0000-0005-0000-000000000005,EEEE" },
+					pagination: { before: "EEEE,00000001-0000-0005-0000-000000000005" },
 					orderBy: { column: "name", order: "desc" },
 				},
 				extraField: "name",
@@ -611,19 +611,19 @@ await describe("slonikAdapter", async () => {
 				[
 					{
 						name: "HHHH",
-						cursor: "00000001-0000-0008-0000-000000000008,HHHH",
+						cursor: "HHHH,00000001-0000-0008-0000-000000000008",
 						hasNextPage: true,
 						hasPreviousPage: true,
 					},
 					{
 						name: "GGGG",
-						cursor: "00000001-0000-0007-0000-000000000007,GGGG",
+						cursor: "GGGG,00000001-0000-0007-0000-000000000007",
 						hasNextPage: true,
 						hasPreviousPage: true,
 					},
 					{
 						name: "FFFF",
-						cursor: "00000001-0000-0006-0000-000000000006,FFFF",
+						cursor: "FFFF,00000001-0000-0006-0000-000000000006",
 						hasNextPage: true,
 						hasPreviousPage: true,
 					},
@@ -632,19 +632,19 @@ await describe("slonikAdapter", async () => {
 			deepEqual(toSorted(prev3, { column: "name", order: "desc" }), [
 				{
 					name: "HHHH",
-					cursor: "00000001-0000-0008-0000-000000000008,HHHH",
+					cursor: "HHHH,00000001-0000-0008-0000-000000000008",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
 				{
 					name: "GGGG",
-					cursor: "00000001-0000-0007-0000-000000000007,GGGG",
+					cursor: "GGGG,00000001-0000-0007-0000-000000000007",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
 				{
 					name: "FFFF",
-					cursor: "00000001-0000-0006-0000-000000000006,FFFF",
+					cursor: "FFFF,00000001-0000-0006-0000-000000000006",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
@@ -656,7 +656,7 @@ await describe("slonikAdapter", async () => {
 				client: pool,
 				options: {
 					tableName,
-					pagination: { after: "00000001-0000-0004-0000-000000000004,DDDD" },
+					pagination: { after: "DDDD,00000001-0000-0004-0000-000000000004" },
 					orderBy: { column: "name", order: "desc" },
 				},
 				extraField: "name",
@@ -665,19 +665,19 @@ await describe("slonikAdapter", async () => {
 			deepEqual(last3, [
 				{
 					name: "CCCC",
-					cursor: "00000001-0000-0003-0000-000000000003,CCCC",
+					cursor: "CCCC,00000001-0000-0003-0000-000000000003",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
 				{
 					name: "BBBB",
-					cursor: "00000001-0000-0002-0000-000000000002,BBBB",
+					cursor: "BBBB,00000001-0000-0002-0000-000000000002",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
 				{
 					name: "AAAA",
-					cursor: "00000001-0000-0001-0000-000000000001,AAAA",
+					cursor: "AAAA,00000001-0000-0001-0000-000000000001",
 					hasNextPage: false,
 					hasPreviousPage: true,
 				},

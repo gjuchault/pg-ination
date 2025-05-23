@@ -103,7 +103,7 @@ function handleDescendingOrder({
 	let filter: PaginateResult["filter"];
 
 	const tableColumn = `${tableName}.${orderByColumn}`;
-	const cursor: PaginateResult["cursor"] = [tableId, tableColumn];
+	const cursor: PaginateResult["cursor"] = [tableColumn, tableId];
 	let order: PaginateResult["order"] = [
 		{ column: tableColumn, order: "desc" },
 		{ column: tableId, order: "desc" },
@@ -158,7 +158,7 @@ function handleAscendingOrder({
 	let filter: PaginateResult["filter"];
 
 	const tableColumn = `${tableName}.${orderByColumn}`;
-	const cursor: PaginateResult["cursor"] = [tableId, tableColumn];
+	const cursor: PaginateResult["cursor"] = [tableColumn, tableId];
 	let order: PaginateResult["order"] = [
 		{ column: tableColumn, order: "asc" },
 		{ column: tableId, order: "asc" },
@@ -201,11 +201,11 @@ function getCursorComparator(cursor: string): {
 	const firstComma = cursor.indexOf(",");
 
 	if (firstComma === -1) {
-		throw new Error("Invalid cursor");
+		return { id: cursor, column: "" };
 	}
 
-	const id = cursor.slice(0, firstComma);
-	const column = cursor.slice(firstComma + 1);
+	const column = cursor.slice(0, firstComma);
+	const id = cursor.slice(firstComma + 1);
 	return { id, column };
 }
 

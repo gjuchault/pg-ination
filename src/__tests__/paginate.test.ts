@@ -1,7 +1,5 @@
 import { deepEqual } from "node:assert/strict";
 import { describe, test } from "node:test";
-
-import { throws } from "node:assert/strict";
 import { paginate } from "../paginate.ts";
 
 await describe("paginate()", async () => {
@@ -122,7 +120,7 @@ await describe("paginate()", async () => {
 					pagination: undefined,
 				}),
 				{
-					cursor: ["data.id", "data.name"],
+					cursor: ["data.name", "data.id"],
 					filter: undefined,
 					hasNextPage: {
 						filter: {
@@ -177,10 +175,10 @@ await describe("paginate()", async () => {
 				paginate({
 					tableName: "data",
 					orderBy: { column: "name", order: "asc" },
-					pagination: { after: "00000001-0000-0009-0000-000000000009,CCCC" },
+					pagination: { after: "CCCC,00000001-0000-0009-0000-000000000009" },
 				}),
 				{
-					cursor: ["data.id", "data.name"],
+					cursor: ["data.name", "data.id"],
 					filter: {
 						left: ["data.name", "data.id"],
 						operator: ">",
@@ -239,10 +237,10 @@ await describe("paginate()", async () => {
 				paginate({
 					tableName: "data",
 					orderBy: { column: "name", order: "asc" },
-					pagination: { before: "00000001-0000-0009-0000-000000000009,CCCC" },
+					pagination: { before: "CCCC,00000001-0000-0009-0000-000000000009" },
 				}),
 				{
-					cursor: ["data.id", "data.name"],
+					cursor: ["data.name", "data.id"],
 					filter: {
 						left: ["data.name", "data.id"],
 						operator: "<",
@@ -297,15 +295,63 @@ await describe("paginate()", async () => {
 		});
 
 		await test("when called with an invalid cursor", () => {
-			throws(
-				() =>
-					paginate({
-						tableName: "data",
-						orderBy: { column: "name", order: "asc" },
-						pagination: { before: "00000001-0000-0009-0000-000000000009" },
-					}),
-				new Error("Invalid cursor"),
-			);
+			const foo = paginate({
+				tableName: "data",
+				orderBy: { column: "name", order: "asc" },
+				pagination: { before: "00000001-0000-0009-0000-000000000009" },
+			});
+			deepEqual(foo, {
+				cursor: ["data.name", "data.id"],
+				filter: {
+					left: ["data.name", "data.id"],
+					operator: "<",
+					right: ["", "00000001-0000-0009-0000-000000000009"],
+				},
+				hasNextPage: {
+					filter: {
+						left: ["subquery.name", "subquery.id"],
+						operator: ">",
+						right: ["data.name", "data.id"],
+					},
+					order: [
+						{
+							column: "data.name",
+							order: "desc",
+						},
+						{
+							column: "data.id",
+							order: "desc",
+						},
+					],
+				},
+				hasPreviousPage: {
+					filter: {
+						left: ["subquery.name", "subquery.id"],
+						operator: "<",
+						right: ["data.name", "data.id"],
+					},
+					order: [
+						{
+							column: "data.name",
+							order: "desc",
+						},
+						{
+							column: "data.id",
+							order: "desc",
+						},
+					],
+				},
+				order: [
+					{
+						column: "data.name",
+						order: "desc",
+					},
+					{
+						column: "data.id",
+						order: "desc",
+					},
+				],
+			});
 		});
 	});
 
@@ -318,7 +364,7 @@ await describe("paginate()", async () => {
 					pagination: undefined,
 				}),
 				{
-					cursor: ["data.id", "data.name"],
+					cursor: ["data.name", "data.id"],
 					filter: undefined,
 					hasNextPage: {
 						filter: {
@@ -373,10 +419,10 @@ await describe("paginate()", async () => {
 				paginate({
 					tableName: "data",
 					orderBy: { column: "name", order: "desc" },
-					pagination: { after: "00000001-0000-0009-0000-000000000009,CCCC" },
+					pagination: { after: "CCCC,00000001-0000-0009-0000-000000000009" },
 				}),
 				{
-					cursor: ["data.id", "data.name"],
+					cursor: ["data.name", "data.id"],
 					filter: {
 						left: ["data.name", "data.id"],
 						operator: "<",
@@ -435,10 +481,10 @@ await describe("paginate()", async () => {
 				paginate({
 					tableName: "data",
 					orderBy: { column: "name", order: "desc" },
-					pagination: { before: "00000001-0000-0009-0000-000000000009,CCCC" },
+					pagination: { before: "CCCC,00000001-0000-0009-0000-000000000009" },
 				}),
 				{
-					cursor: ["data.id", "data.name"],
+					cursor: ["data.name", "data.id"],
 					filter: {
 						left: ["data.name", "data.id"],
 						operator: ">",
