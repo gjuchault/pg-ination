@@ -205,7 +205,7 @@ const previousPageCursor = users.at(0)?.cursor ?? undefined;
 const paginateOptions: PaginateOptions = {
   tableName: "table_sq",
   pagination,
-  orderBy,
+  orderBy: { column: "foo", order: "asc" },
 };
 const paginateResult = paginate(paginateOptions);
 const adapterResult = xAdapter(paginateOptions, paginateResult);
