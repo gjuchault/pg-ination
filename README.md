@@ -6,6 +6,14 @@
 
 A utility to have arbitrary ordering with cursor based pagination, as well as next and previous page checks
 
+- [Options](#options)
+- [Adapter result](#adapter-result)
+- [Usage](#usage)
+  - [node-postgres](#node-postgres)
+  - [bun.sh](#bunsh)
+  - [slonik](#slonik)
+  - [Subquery pattern](#subquery-pattern)
+
 **Limitations**:
 
 - You must have a unique, always-increasing `id` field (eg. UUIDv7)
