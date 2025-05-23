@@ -9,7 +9,7 @@ A utility to have arbitrary ordering with cursor based pagination, as well as ne
 **Limitations**:
 
 - You must have a unique, always-increasing `id` field (eg. UUIDv7)
-- You can't use sort by fields that do not come directly from the table (that would be a limitation for the next/previous page). [Example below](#subquery-pattern)
+- You can't use sort by fields that do not come directly from the table (that would be a limitation for the next/previous page). [Example below using a subquery to fix it](#subquery-pattern)
 
 ## Options
 
