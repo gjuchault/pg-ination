@@ -40,24 +40,24 @@ async function query({
 			${adapterResult.cursor} as "cursor",
 			${adapterResult.hasNextPage} as "hasNextPage",
 			${adapterResult.hasPreviousPage} as "hasPreviousPage",
-			${extraField !== undefined ? sql`${extraField}` : sql``}
-		from ${sql`${options.tableName}`}
+			${extraField !== undefined ? sql(extraField) : sql``}
+		from ${sql(options.tableName)}
 		where ${adapterResult.filter}
 		order by ${adapterResult.order}
 		limit 3
 	`;
 
-	return data;
+	return Array.from(data);
 }
 
-await describe("slonikAdapter", async () => {
+await describe("postgresAdapter", async () => {
 	await describe("given no ordering", async () => {
 		let sql: postgres.Sql;
 		let tableName: string;
 
 		before(async () => {
 			sql = getClient();
-			tableName = "data-slonik-no-ordering";
+			tableName = "data-postgres-no-ordering";
 			await paginationTestData<postgres.Fragment, postgres.Helper<string, []>>({
 				sql: sql,
 				tableName: sql(tableName),
@@ -261,7 +261,7 @@ await describe("slonikAdapter", async () => {
 
 		before(async () => {
 			sql = getClient();
-			tableName = "data-slonik-arbitrary-ordering-asc";
+			tableName = "data-postgres-arbitrary-ordering-asc";
 			await paginationTestData<postgres.Fragment, postgres.Helper<string, []>>({
 				sql,
 				tableName: sql(tableName),
@@ -466,7 +466,7 @@ await describe("slonikAdapter", async () => {
 
 		before(async () => {
 			sql = getClient();
-			tableName = "data-slonik-arbitrary-ordering-desc";
+			tableName = "data-postgres-arbitrary-ordering-desc";
 			await paginationTestData<postgres.Fragment, postgres.Helper<string, []>>({
 				sql,
 				tableName: sql(tableName),
