@@ -4,8 +4,8 @@ import postgres from "postgres";
 
 import { type PaginateOptions, paginate } from "../../paginate.ts";
 import { toSorted } from "../../sort.ts";
-import { paginationTestData } from "./helpers.ts";
 import { postgresAdapter } from "../postgres.ts";
+import { paginationTestData } from "./helpers.ts";
 
 // biome-ignore lint/complexity/useLiteralKeys: noPropertyAccessFromIndexSignature
 const dbUrl = process.env["DB_URL"];
@@ -14,8 +14,9 @@ if (dbUrl === undefined) {
 	throw new Error("DB_URL is not set");
 }
 
-async function getClient(): Promise<postgres.Sql> {
-	const pool = await postgres(dbUrl ?? "", {
+function getClient(): postgres.Sql {
+	const pool = postgres(dbUrl ?? "", {
+		// biome-ignore lint/style/useNamingConvention: postgres option
 		idle_timeout: 1000,
 	});
 
@@ -55,7 +56,7 @@ await describe("slonikAdapter", async () => {
 		let tableName: string;
 
 		before(async () => {
-			sql = await getClient();
+			sql = getClient();
 			tableName = "data-slonik-no-ordering";
 			await paginationTestData<postgres.Fragment, postgres.Helper<string, []>>({
 				sql: sql,
@@ -259,7 +260,7 @@ await describe("slonikAdapter", async () => {
 		let tableName: string;
 
 		before(async () => {
-			sql = await getClient();
+			sql = getClient();
 			tableName = "data-slonik-arbitrary-ordering-asc";
 			await paginationTestData<postgres.Fragment, postgres.Helper<string, []>>({
 				sql,
@@ -464,7 +465,7 @@ await describe("slonikAdapter", async () => {
 		let tableName: string;
 
 		before(async () => {
-			sql = await getClient();
+			sql = getClient();
 			tableName = "data-slonik-arbitrary-ordering-desc";
 			await paginationTestData<postgres.Fragment, postgres.Helper<string, []>>({
 				sql,
