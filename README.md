@@ -207,6 +207,46 @@ const nextPageCursor = users.at(-1)?.cursor ?? undefined;
 const previousPageCursor = users.at(0)?.cursor ?? undefined;
 ```
 
+### postgres
+
+```ts
+import postgres from "postgres";
+import { paginate, toSorted } from "pg-ination";
+import { postgresAdapter } from "pg-ination/adapters/postgres";
+
+const options = {
+  tableName: "foo",
+  orderBy: { column: "name", order: "desc" },
+};
+const paginateResult = paginate(options);
+const fragments = postgresAdapter(options, paginateResult);
+
+const sql = postgres(process.env["DB_URI"]);
+
+// Fragments are escaped already
+
+const unsortedUsers = await sql`
+  select
+    "id",
+    ${fragments.cursor},
+    ${fragments.hasNextPage} as "hasNextPage",
+    ${fragments.hasPreviousPage} as "hasPreviousPage"
+  from "users"
+  where ${fragments.filter}
+  order by ${fragments.order}
+  limit 3
+`;
+
+// the applied order by might be different than the provided one to be used with `before` cursor
+// hence you should always call `toSorted()` with the same settings as the `orderBy` of paginate
+const users = toSorted(unsortedUsers, options.orderBy);
+
+// use with { after: nextPageCursor }
+const nextPageCursor = users.at(-1)?.cursor ?? undefined;
+// use with { before: previousPageCursor }
+const previousPageCursor = users.at(0)?.cursor ?? undefined;
+```
+
 ### Subquery pattern
 
 ```ts

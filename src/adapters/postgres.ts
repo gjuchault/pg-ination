@@ -19,9 +19,9 @@ export function postgresAdapter(
 
 	return {
 		cursor: sql.unsafe(cursor),
-		filter: sql.unsafe(filter),
+		filter: filter === "true" ? sql`true` : sql.unsafe(filter),
 		order: sql.unsafe(order),
-		hasNextPage: sql.unsafe(hasNextPage),
-		hasPreviousPage: sql.unsafe(hasPreviousPage),
+		hasNextPage: sql`${sql.unsafe(hasNextPage)}::boolean`,
+		hasPreviousPage: sql`${sql.unsafe(hasPreviousPage)}::boolean`,
 	};
 }
