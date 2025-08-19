@@ -30,10 +30,10 @@ async function query({
 
 	const data = await sql`
 			select
+				${extraField !== undefined ? sql`${sql(extraField)},` : sql``}
 				${adapterResult.cursor} as "cursor",
 				${adapterResult.hasNextPage} as "hasNextPage",
-				${adapterResult.hasPreviousPage} as "hasPreviousPage",
-				${extraField !== undefined ? sql(extraField) : sql``}
+				${adapterResult.hasPreviousPage} as "hasPreviousPage"
 			from ${sql(options.tableName)}
 			where ${adapterResult.filter}
 			order by ${adapterResult.order}

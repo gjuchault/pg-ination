@@ -46,10 +46,10 @@ async function query({
 
 	const data = await client.any(sql.unsafe`
 		select
+			${extraField !== undefined ? sql.unsafe`${sql.identifier([extraField])},` : sql.unsafe``}
 			${adapterResult.cursor} as "cursor",
 			${adapterResult.hasNextPage} as "hasNextPage",
-			${adapterResult.hasPreviousPage} as "hasPreviousPage",
-			${extraField !== undefined ? sql.identifier([extraField]) : sql.unsafe``}
+			${adapterResult.hasPreviousPage} as "hasPreviousPage"
 		from ${sql.identifier([options.tableName])}
 		where ${adapterResult.filter}
 		order by ${adapterResult.order}

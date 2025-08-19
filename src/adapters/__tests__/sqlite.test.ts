@@ -1,100 +1,77 @@
 import { deepEqual } from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { Client } from "pg";
+import { DatabaseSync } from "node:sqlite";
 
 import { type PaginateOptions, paginate } from "../../paginate.ts";
 import { toSorted } from "../../sort.ts";
-import { pgAdapter } from "../pg.ts";
-import { paginationTestData, paginationTestNullData } from "./helpers.ts";
+import { paginationTestData } from "./helpers.ts";
+import { sqliteAdapter } from "../sqlite.ts";
 
-// biome-ignore lint/complexity/useLiteralKeys: noPropertyAccessFromIndexSignature
-const dbUrl = process.env["DB_URL"];
-
-if (dbUrl === undefined) {
-	throw new Error("DB_URL is not set");
+function getClient(): DatabaseSync {
+	return new DatabaseSync(":memory:");
 }
 
-async function getClient(): Promise<Client> {
-	const sql = new Client({
-		connectionString: dbUrl,
-		// biome-ignore lint/style/useNamingConvention: pg
-		statement_timeout: 1_000,
-		// biome-ignore lint/style/useNamingConvention: pg
-		query_timeout: 1_000,
-		// biome-ignore lint/style/useNamingConvention: pg
-		lock_timeout: 1_000,
-		connectionTimeoutMillis: 1_000,
-		// biome-ignore lint/style/useNamingConvention: pg
-		idle_in_transaction_session_timeout: 1_000,
-	});
-
-	await sql.connect();
-
-	return sql;
-}
-
-function rawSql(strings: TemplateStringsArray, ...args: string[]): string {
-	let output = "";
-
-	for (let i = 0; i < strings.length; i += 1) {
-		output += strings[i] + (args[i] ?? "");
-	}
-
-	return output;
-}
-
-async function query({
-	client,
+function query({
+	sql,
 	options,
 	extraField,
 }: {
-	client: Client;
+	sql: DatabaseSync;
 	options: PaginateOptions;
 	extraField?: string;
-}): Promise<readonly unknown[]> {
+}): readonly unknown[] {
 	const result = paginate(options);
-	const adapterResult = pgAdapter(options, result);
+	const adapterResult = sqliteAdapter(options, result);
 
-	const data = await client.query(rawSql`
-		select
-			${extraField !== undefined ? client.escapeIdentifier(extraField) : ""}
-			${adapterResult.cursor} as "cursor"
-			${adapterResult.hasNextPage} as "hasNextPage",
-			${adapterResult.hasPreviousPage} as "hasPreviousPage"
-		from ${client.escapeIdentifier(options.tableName)}
-		where ${adapterResult.filter}
-		order by ${adapterResult.order}
-		limit 3
-	`);
+	const data = sql
+		.prepare(`
+				select
+					${extraField !== undefined ? `${extraField},` : ""}
+					${adapterResult.cursor} as "cursor",
+					${adapterResult.hasNextPage} as "hasNextPage",
+					${adapterResult.hasPreviousPage} as "hasPreviousPage"
+				from ${options.tableName}
+				where ${adapterResult.filter}
+				order by ${adapterResult.order}
+				limit 3
+			`)
+		.all();
 
-	return data.rows;
+	// create a new object to avoid having null prototype objects
+	return Array.from(data).map((row) => ({ ...row }));
 }
 
-await describe("sqlAdapter", async () => {
+await describe("postgresAdapter", async () => {
 	await describe("given no ordering", async () => {
-		let sql: Client;
+		let sql: DatabaseSync;
 		let tableName: string;
 
 		before(async () => {
-			sql = await getClient();
-			tableName = "data-sql-no-ordering";
+			sql = getClient();
+			tableName = "data_postgres_no_ordering";
 			await paginationTestData<string, string>({
-				sql: async (query, ...args) => {
-					const { rows } = await sql.query(rawSql(query, ...args));
+				sql(strings, ...parts) {
+					const fullQuery = strings.reduce((acc, str, i) => {
+						if (parts.length > i) {
+							return acc + str + (parts[i] ?? "null");
+						}
 
-					return rows;
+						return acc + str;
+					}, "");
+
+					return Promise.resolve(sql.prepare(fullQuery).all());
 				},
-				tableName: sql.escapeIdentifier(tableName),
+				tableName,
 			});
 		});
 
 		after(async () => {
-			await sql.end();
+			await sql.close();
 		});
 
 		await it("when called getting first page", async () => {
 			const first3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -107,20 +84,20 @@ await describe("sqlAdapter", async () => {
 				{
 					id: "00000001-0000-0009-0000-000000000009",
 					cursor: "00000001-0000-0009-0000-000000000009",
-					hasNextPage: true,
-					hasPreviousPage: false,
+					hasNextPage: 1,
+					hasPreviousPage: 0,
 				},
 				{
 					id: "00000001-0000-0008-0000-000000000008",
 					cursor: "00000001-0000-0008-0000-000000000008",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0007-0000-000000000007",
 					cursor: "00000001-0000-0007-0000-000000000007",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 
@@ -129,7 +106,7 @@ await describe("sqlAdapter", async () => {
 
 		await it("when called getting second page", async () => {
 			const next3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: { after: "00000001-0000-0007-0000-000000000007" },
@@ -142,20 +119,20 @@ await describe("sqlAdapter", async () => {
 				{
 					id: "00000001-0000-0006-0000-000000000006",
 					cursor: "00000001-0000-0006-0000-000000000006",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0005-0000-000000000005",
 					cursor: "00000001-0000-0005-0000-000000000005",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0004-0000-000000000004",
 					cursor: "00000001-0000-0004-0000-000000000004",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 
@@ -164,7 +141,7 @@ await describe("sqlAdapter", async () => {
 
 		await it("when called getting back to first page", async () => {
 			const first3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -174,7 +151,7 @@ await describe("sqlAdapter", async () => {
 			});
 
 			const prev3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: { before: "00000001-0000-0006-0000-000000000006" },
@@ -193,7 +170,7 @@ await describe("sqlAdapter", async () => {
 		// before/after)
 		await it("when called getting back to middle page", async () => {
 			const prev3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: { before: "00000001-0000-0005-0000-000000000005" },
@@ -206,47 +183,47 @@ await describe("sqlAdapter", async () => {
 				{
 					id: "00000001-0000-0006-0000-000000000006",
 					cursor: "00000001-0000-0006-0000-000000000006",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0007-0000-000000000007",
 					cursor: "00000001-0000-0007-0000-000000000007",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0008-0000-000000000008",
 					cursor: "00000001-0000-0008-0000-000000000008",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 			deepEqual(toSorted(prev3), [
 				{
 					id: "00000001-0000-0008-0000-000000000008",
 					cursor: "00000001-0000-0008-0000-000000000008",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0007-0000-000000000007",
 					cursor: "00000001-0000-0007-0000-000000000007",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0006-0000-000000000006",
 					cursor: "00000001-0000-0006-0000-000000000006",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 		});
 
 		await it("when called getting the last page", async () => {
 			const last3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: { after: "00000001-0000-0004-0000-000000000004" },
@@ -259,20 +236,20 @@ await describe("sqlAdapter", async () => {
 				{
 					id: "00000001-0000-0003-0000-000000000003",
 					cursor: "00000001-0000-0003-0000-000000000003",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0002-0000-000000000002",
 					cursor: "00000001-0000-0002-0000-000000000002",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0001-0000-000000000001",
 					cursor: "00000001-0000-0001-0000-000000000001",
-					hasNextPage: false,
-					hasPreviousPage: true,
+					hasNextPage: 0,
+					hasPreviousPage: 1,
 				},
 			]);
 			deepEqual(toSorted(last3), last3);
@@ -280,29 +257,35 @@ await describe("sqlAdapter", async () => {
 	});
 
 	await describe("given arbitrary order, asc", async () => {
-		let sql: Client;
+		let sql: DatabaseSync;
 		let tableName: string;
 
 		before(async () => {
-			sql = await getClient();
-			tableName = "data-sql-arbitrary-ordering-asc";
+			sql = getClient();
+			tableName = "data_postgres_arbitrary_ordering_asc";
 			await paginationTestData<string, string>({
-				sql: async (query, ...args) => {
-					const { rows } = await sql.query(rawSql(query, ...args));
+				sql(strings, ...parts) {
+					const fullQuery = strings.reduce((acc, str, i) => {
+						if (parts.length > i) {
+							return acc + str + (parts[i] ?? "null");
+						}
 
-					return rows;
+						return acc + str;
+					}, "");
+
+					return Promise.resolve(sql.prepare(fullQuery).all());
 				},
-				tableName: sql.escapeIdentifier(tableName),
+				tableName,
 			});
 		});
 
 		after(async () => {
-			await sql.end();
+			await sql.close();
 		});
 
 		await it("when called getting first page", async () => {
 			const first3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -315,20 +298,20 @@ await describe("sqlAdapter", async () => {
 				{
 					name: "AAAA",
 					cursor: "AAAA,00000001-0000-0001-0000-000000000001",
-					hasNextPage: true,
-					hasPreviousPage: false,
+					hasNextPage: 1,
+					hasPreviousPage: 0,
 				},
 				{
 					name: "BBBB",
 					cursor: "BBBB,00000001-0000-0002-0000-000000000002",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "CCCC",
 					cursor: "CCCC,00000001-0000-0003-0000-000000000003",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 			deepEqual(toSorted(first3, { column: "name", order: "asc" }), first3);
@@ -336,7 +319,7 @@ await describe("sqlAdapter", async () => {
 
 		await it("when called getting second page", async () => {
 			const next3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: { after: "CCCC,00000001-0000-0003-0000-000000000003" },
@@ -349,20 +332,20 @@ await describe("sqlAdapter", async () => {
 				{
 					name: "DDDD",
 					cursor: "DDDD,00000001-0000-0004-0000-000000000004",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "EEEE",
 					cursor: "EEEE,00000001-0000-0005-0000-000000000005",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "FFFF",
 					cursor: "FFFF,00000001-0000-0006-0000-000000000006",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 			deepEqual(toSorted(next3, { column: "name", order: "asc" }), next3);
@@ -370,7 +353,7 @@ await describe("sqlAdapter", async () => {
 
 		await it("when called getting back to first page", async () => {
 			const first3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -380,7 +363,7 @@ await describe("sqlAdapter", async () => {
 			});
 
 			const prev3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: { before: "DDDD,00000001-0000-0004-0000-000000000004" },
@@ -399,7 +382,7 @@ await describe("sqlAdapter", async () => {
 		// before/after)
 		await it("when called getting back to middle page", async () => {
 			const prev3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: { before: "EEEE,00000001-0000-0005-0000-000000000005" },
@@ -414,20 +397,20 @@ await describe("sqlAdapter", async () => {
 					{
 						name: "BBBB",
 						cursor: "BBBB,00000001-0000-0002-0000-000000000002",
-						hasNextPage: true,
-						hasPreviousPage: true,
+						hasNextPage: 1,
+						hasPreviousPage: 1,
 					},
 					{
 						name: "CCCC",
 						cursor: "CCCC,00000001-0000-0003-0000-000000000003",
-						hasNextPage: true,
-						hasPreviousPage: true,
+						hasNextPage: 1,
+						hasPreviousPage: 1,
 					},
 					{
 						name: "DDDD",
 						cursor: "DDDD,00000001-0000-0004-0000-000000000004",
-						hasNextPage: true,
-						hasPreviousPage: true,
+						hasNextPage: 1,
+						hasPreviousPage: 1,
 					},
 				].toReversed(),
 			);
@@ -435,27 +418,27 @@ await describe("sqlAdapter", async () => {
 				{
 					name: "BBBB",
 					cursor: "BBBB,00000001-0000-0002-0000-000000000002",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "CCCC",
 					cursor: "CCCC,00000001-0000-0003-0000-000000000003",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "DDDD",
 					cursor: "DDDD,00000001-0000-0004-0000-000000000004",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 		});
 
 		await it("when called getting the last page", async () => {
 			const last3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: { after: "FFFF,00000001-0000-0006-0000-000000000006" },
@@ -468,20 +451,20 @@ await describe("sqlAdapter", async () => {
 				{
 					name: "GGGG",
 					cursor: "GGGG,00000001-0000-0007-0000-000000000007",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "HHHH",
 					cursor: "HHHH,00000001-0000-0008-0000-000000000008",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "IIII",
 					cursor: "IIII,00000001-0000-0009-0000-000000000009",
-					hasNextPage: false,
-					hasPreviousPage: true,
+					hasNextPage: 0,
+					hasPreviousPage: 1,
 				},
 			]);
 			deepEqual(toSorted(last3, { column: "name", order: "asc" }), last3);
@@ -489,29 +472,35 @@ await describe("sqlAdapter", async () => {
 	});
 
 	await describe("given arbitrary order, desc", async () => {
-		let sql: Client;
+		let sql: DatabaseSync;
 		let tableName: string;
 
 		before(async () => {
-			sql = await getClient();
-			tableName = "data-sql-arbitrary-ordering-desc";
+			sql = getClient();
+			tableName = "data_postgres_arbitrary_ordering_desc";
 			await paginationTestData<string, string>({
-				sql: async (query, ...args) => {
-					const { rows } = await sql.query(rawSql(query, ...args));
+				sql(strings, ...parts) {
+					const fullQuery = strings.reduce((acc, str, i) => {
+						if (parts.length > i) {
+							return acc + str + (parts[i] ?? "null");
+						}
 
-					return rows;
+						return acc + str;
+					}, "");
+
+					return Promise.resolve(sql.prepare(fullQuery).all());
 				},
-				tableName: sql.escapeIdentifier(tableName),
+				tableName,
 			});
 		});
 
 		after(async () => {
-			await sql.end();
+			await sql.close();
 		});
 
 		await it("when called getting first page", async () => {
 			const first3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -524,20 +513,20 @@ await describe("sqlAdapter", async () => {
 				{
 					name: "IIII",
 					cursor: "IIII,00000001-0000-0009-0000-000000000009",
-					hasNextPage: true,
-					hasPreviousPage: false,
+					hasNextPage: 1,
+					hasPreviousPage: 0,
 				},
 				{
 					name: "HHHH",
 					cursor: "HHHH,00000001-0000-0008-0000-000000000008",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "GGGG",
 					cursor: "GGGG,00000001-0000-0007-0000-000000000007",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 			deepEqual(toSorted(first3, { column: "name", order: "desc" }), first3);
@@ -545,7 +534,7 @@ await describe("sqlAdapter", async () => {
 
 		await it("when called getting second page", async () => {
 			const next3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: { after: "GGGG,00000001-0000-0007-0000-000000000007" },
@@ -558,20 +547,20 @@ await describe("sqlAdapter", async () => {
 				{
 					name: "FFFF",
 					cursor: "FFFF,00000001-0000-0006-0000-000000000006",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "EEEE",
 					cursor: "EEEE,00000001-0000-0005-0000-000000000005",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "DDDD",
 					cursor: "DDDD,00000001-0000-0004-0000-000000000004",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 			deepEqual(toSorted(next3, { column: "name", order: "desc" }), next3);
@@ -579,7 +568,7 @@ await describe("sqlAdapter", async () => {
 
 		await it("when called getting back to first page", async () => {
 			const first3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -589,7 +578,7 @@ await describe("sqlAdapter", async () => {
 			});
 
 			const prev3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: { before: "FFFF,00000001-0000-0006-0000-000000000006" },
@@ -608,7 +597,7 @@ await describe("sqlAdapter", async () => {
 		// before/after)
 		await it("when called getting back to middle page", async () => {
 			const prev3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: { before: "EEEE,00000001-0000-0005-0000-000000000005" },
@@ -623,20 +612,20 @@ await describe("sqlAdapter", async () => {
 					{
 						name: "HHHH",
 						cursor: "HHHH,00000001-0000-0008-0000-000000000008",
-						hasNextPage: true,
-						hasPreviousPage: true,
+						hasNextPage: 1,
+						hasPreviousPage: 1,
 					},
 					{
 						name: "GGGG",
 						cursor: "GGGG,00000001-0000-0007-0000-000000000007",
-						hasNextPage: true,
-						hasPreviousPage: true,
+						hasNextPage: 1,
+						hasPreviousPage: 1,
 					},
 					{
 						name: "FFFF",
 						cursor: "FFFF,00000001-0000-0006-0000-000000000006",
-						hasNextPage: true,
-						hasPreviousPage: true,
+						hasNextPage: 1,
+						hasPreviousPage: 1,
 					},
 				].toReversed(),
 			);
@@ -644,27 +633,27 @@ await describe("sqlAdapter", async () => {
 				{
 					name: "HHHH",
 					cursor: "HHHH,00000001-0000-0008-0000-000000000008",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "GGGG",
 					cursor: "GGGG,00000001-0000-0007-0000-000000000007",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "FFFF",
 					cursor: "FFFF,00000001-0000-0006-0000-000000000006",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 		});
 
 		await it("when called getting the last page", async () => {
 			const last3 = await query({
-				client: sql,
+				sql,
 				options: {
 					tableName,
 					pagination: { after: "DDDD,00000001-0000-0004-0000-000000000004" },
@@ -677,232 +666,23 @@ await describe("sqlAdapter", async () => {
 				{
 					name: "CCCC",
 					cursor: "CCCC,00000001-0000-0003-0000-000000000003",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "BBBB",
 					cursor: "BBBB,00000001-0000-0002-0000-000000000002",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "AAAA",
 					cursor: "AAAA,00000001-0000-0001-0000-000000000001",
-					hasNextPage: false,
-					hasPreviousPage: true,
+					hasNextPage: 0,
+					hasPreviousPage: 1,
 				},
 			]);
 			deepEqual(toSorted(last3, { column: "name", order: "desc" }), last3);
-		});
-	});
-
-	await describe("given arbitrary order with null values", async () => {
-		let sql: Client;
-		let tableName: string;
-
-		before(async () => {
-			sql = await getClient();
-			tableName = "data-sql-null-values";
-			await paginationTestNullData<string, string>({
-				sql: async (query, ...args) => {
-					const { rows } = await sql.query(rawSql(query, ...args));
-
-					return rows;
-				},
-				tableName: sql.escapeIdentifier(tableName),
-			});
-		});
-
-		after(async () => {
-			await sql.end();
-		});
-
-		await it("when called getting first page", async () => {
-			const first3 = await query({
-				client: sql,
-				options: {
-					tableName,
-					pagination: undefined,
-					orderBy: { column: "name", order: "asc" },
-				},
-				extraField: "name",
-			});
-
-			deepEqual(first3, [
-				{
-					name: null,
-					cursor: "00000001-0000-0001-0000-000000000001",
-					hasNextPage: true,
-					hasPreviousPage: false,
-				},
-				{
-					name: null,
-					cursor: "00000001-0000-0002-0000-000000000002",
-					hasNextPage: true,
-					hasPreviousPage: true,
-				},
-				{
-					name: null,
-					cursor: "00000001-0000-0003-0000-000000000003",
-					hasNextPage: true,
-					hasPreviousPage: true,
-				},
-			]);
-
-			deepEqual(toSorted(first3, { column: "name", order: "asc" }), first3);
-		});
-
-		await it("when called getting second page", async () => {
-			const next3 = await query({
-				client: sql,
-				options: {
-					tableName,
-					pagination: { after: "00000001-0000-0003-0000-000000000003" },
-					orderBy: { column: "name", order: "asc" },
-				},
-				extraField: "name",
-			});
-
-			deepEqual(toSorted(next3, { column: "name", order: "asc" }), [
-				{
-					cursor: "00000001-0000-0004-0000-000000000004",
-					hasNextPage: true,
-					hasPreviousPage: true,
-					name: null,
-				},
-				{
-					cursor: "00000001-0000-0005-0000-000000000005",
-					hasNextPage: true,
-					hasPreviousPage: true,
-					name: null,
-				},
-				{
-					cursor: "00000001-0000-0006-0000-000000000006",
-					hasNextPage: true,
-					hasPreviousPage: true,
-					name: null,
-				},
-			]);
-
-			deepEqual(toSorted(next3, { column: "name", order: "asc" }), next3);
-		});
-
-		await it("when called getting back to first page", async () => {
-			const first3 = await query({
-				client: sql,
-				options: {
-					tableName,
-					pagination: undefined,
-					orderBy: { column: "name", order: "asc" },
-				},
-				extraField: "id",
-			});
-
-			const first3Sorted = toSorted(first3, {
-				column: "name",
-				order: "asc",
-			}) as [{ cursor: string }, ...{ cursor: string }[]];
-
-			const next3 = await query({
-				client: sql,
-				options: {
-					tableName,
-					pagination: { after: first3Sorted.at(2)?.cursor ?? "" },
-					orderBy: { column: "name", order: "asc" },
-				},
-				extraField: "id",
-			});
-
-			const next3Sorted = toSorted(next3, {
-				column: "name",
-				order: "asc",
-			}) as [{ cursor: string }, ...{ cursor: string }[]];
-
-			const prev3 = await query({
-				client: sql,
-				options: {
-					tableName,
-					pagination: { before: next3Sorted[0].cursor },
-					orderBy: { column: "name", order: "asc" },
-				},
-				extraField: "id",
-			});
-			const prev3Sorted = toSorted(prev3, { column: "name", order: "asc" });
-
-			// In this specific case, we need to sort all the time since we can't sort ascending by name (since name is null)
-			// the fallback is to sort by id in either direction, as long as we're consistent
-			deepEqual(prev3Sorted, first3Sorted);
-		});
-
-		// this test ensures the sorting is not inferring with the pagination
-		// (ie. that by returning the first page because of the ordering hides
-		// the fact that the previous page should be actually be done thanks to
-		// before/after)
-		await it("when called getting back to middle page", async () => {
-			const prev3 = await query({
-				client: sql,
-				options: {
-					tableName,
-					pagination: { before: "00000001-0000-0005-0000-000000000005" },
-					orderBy: { column: "name", order: "asc" },
-				},
-				extraField: "id",
-			});
-
-			deepEqual(toSorted(prev3, { column: "name", order: "asc" }), [
-				{
-					cursor: "00000001-0000-0002-0000-000000000002",
-					hasNextPage: true,
-					hasPreviousPage: true,
-					id: "00000001-0000-0002-0000-000000000002",
-				},
-				{
-					cursor: "00000001-0000-0003-0000-000000000003",
-					hasNextPage: true,
-					hasPreviousPage: true,
-					id: "00000001-0000-0003-0000-000000000003",
-				},
-				{
-					cursor: "00000001-0000-0004-0000-000000000004",
-					hasNextPage: true,
-					hasPreviousPage: true,
-					id: "00000001-0000-0004-0000-000000000004",
-				},
-			]);
-		});
-
-		await it("when called getting the last page", async () => {
-			const last3 = await query({
-				client: sql,
-				options: {
-					tableName,
-					pagination: { after: "00000001-0000-0004-0000-000000000004" },
-					orderBy: { column: "name", order: "asc" },
-				},
-				extraField: "id",
-			});
-
-			deepEqual(toSorted(last3, { column: "name", order: "asc" }), [
-				{
-					cursor: "00000001-0000-0005-0000-000000000005",
-					hasNextPage: true,
-					hasPreviousPage: true,
-					id: "00000001-0000-0005-0000-000000000005",
-				},
-				{
-					cursor: "00000001-0000-0006-0000-000000000006",
-					hasNextPage: true,
-					hasPreviousPage: true,
-					id: "00000001-0000-0006-0000-000000000006",
-				},
-				{
-					cursor: "00000001-0000-0007-0000-000000000007",
-					hasNextPage: true,
-					hasPreviousPage: true,
-					id: "00000001-0000-0007-0000-000000000007",
-				},
-			]);
 		});
 	});
 });

@@ -230,6 +230,11 @@ function getPagesExistence({
 	const nextOperator = pageMode === "next-below" ? "<" : ">";
 	const previousOperator = pageMode === "next-below" ? ">" : "<";
 
+	const orderOnSubquery = order.map(({ column, order }) => ({
+		column: column.replace(tableName, "subquery"),
+		order,
+	}));
+
 	return {
 		hasPreviousPage: {
 			filter:
@@ -244,7 +249,7 @@ function getPagesExistence({
 							operator: previousOperator,
 							right: [tableId],
 						},
-			order,
+			order: orderOnSubquery,
 		},
 		hasNextPage: {
 			filter:
@@ -259,7 +264,7 @@ function getPagesExistence({
 							operator: nextOperator,
 							right: [tableId],
 						},
-			order,
+			order: orderOnSubquery,
 		},
 	};
 }
