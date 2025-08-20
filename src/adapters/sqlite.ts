@@ -1,6 +1,6 @@
 import pgUtils from "pg/lib/utils.js";
-import type { PaginateOptions, PaginateResult } from "../paginate.ts";
 import type { AdapterResult } from "../index.ts";
+import type { PaginateOptions, PaginateResult } from "../paginate.ts";
 
 const { escapeIdentifier, escapeLiteral } = pgUtils;
 
@@ -28,7 +28,6 @@ export function sqliteAdapter(
 	}
 
 	if (result.hasNextPage !== undefined) {
-		console.log("ORDER", result.hasNextPage.order);
 		hasNextPage = `exists (
 			select "subquery"."id" from ${sql_(options.tableName)} as ${sql_("subquery")}
 			where ${applyFilter(result.hasNextPage.filter, sql_)}

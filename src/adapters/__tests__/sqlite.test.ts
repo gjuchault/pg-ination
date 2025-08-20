@@ -1,11 +1,11 @@
 import { deepEqual } from "node:assert/strict";
-import { after, before, describe, it } from "node:test";
 import { DatabaseSync } from "node:sqlite";
+import { after, before, describe, it } from "node:test";
 
 import { type PaginateOptions, paginate } from "../../paginate.ts";
 import { toSorted } from "../../sort.ts";
-import { paginationTestData } from "./helpers.ts";
 import { sqliteAdapter } from "../sqlite.ts";
+import { paginationTestData } from "./helpers.ts";
 
 function getClient(): DatabaseSync {
 	return new DatabaseSync(":memory:");
