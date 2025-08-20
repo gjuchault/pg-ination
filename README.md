@@ -13,6 +13,7 @@ A utility to have arbitrary ordering with cursor based pagination, as well as ne
   - [bun.sh](#bunsh)
   - [slonik](#slonik)
   - [Subquery pattern](#subquery-pattern)
+  - [sqlite](#sqlite)
 
 **Limitations**:
 
