@@ -130,11 +130,11 @@ await describe("paginate()", async () => {
 						},
 						order: [
 							{
-								column: "data.name",
+								column: "subquery.name",
 								order: "asc",
 							},
 							{
-								column: "data.id",
+								column: "subquery.id",
 								order: "asc",
 							},
 						],
@@ -147,11 +147,11 @@ await describe("paginate()", async () => {
 						},
 						order: [
 							{
-								column: "data.name",
+								column: "subquery.name",
 								order: "asc",
 							},
 							{
-								column: "data.id",
+								column: "subquery.id",
 								order: "asc",
 							},
 						],
@@ -192,11 +192,11 @@ await describe("paginate()", async () => {
 						},
 						order: [
 							{
-								column: "data.name",
+								column: "subquery.name",
 								order: "asc",
 							},
 							{
-								column: "data.id",
+								column: "subquery.id",
 								order: "asc",
 							},
 						],
@@ -209,11 +209,11 @@ await describe("paginate()", async () => {
 						},
 						order: [
 							{
-								column: "data.name",
+								column: "subquery.name",
 								order: "asc",
 							},
 							{
-								column: "data.id",
+								column: "subquery.id",
 								order: "asc",
 							},
 						],
@@ -254,11 +254,11 @@ await describe("paginate()", async () => {
 						},
 						order: [
 							{
-								column: "data.name",
+								column: "subquery.name",
 								order: "desc",
 							},
 							{
-								column: "data.id",
+								column: "subquery.id",
 								order: "desc",
 							},
 						],
@@ -271,11 +271,11 @@ await describe("paginate()", async () => {
 						},
 						order: [
 							{
-								column: "data.name",
+								column: "subquery.name",
 								order: "desc",
 							},
 							{
-								column: "data.id",
+								column: "subquery.id",
 								order: "desc",
 							},
 						],
@@ -315,11 +315,11 @@ await describe("paginate()", async () => {
 					},
 					order: [
 						{
-							column: "data.name",
+							column: "subquery.name",
 							order: "desc",
 						},
 						{
-							column: "data.id",
+							column: "subquery.id",
 							order: "desc",
 						},
 					],
@@ -332,11 +332,11 @@ await describe("paginate()", async () => {
 					},
 					order: [
 						{
-							column: "data.name",
+							column: "subquery.name",
 							order: "desc",
 						},
 						{
-							column: "data.id",
+							column: "subquery.id",
 							order: "desc",
 						},
 					],
@@ -374,11 +374,11 @@ await describe("paginate()", async () => {
 						},
 						order: [
 							{
-								column: "data.name",
+								column: "subquery.name",
 								order: "desc",
 							},
 							{
-								column: "data.id",
+								column: "subquery.id",
 								order: "desc",
 							},
 						],
@@ -391,11 +391,11 @@ await describe("paginate()", async () => {
 						},
 						order: [
 							{
-								column: "data.name",
+								column: "subquery.name",
 								order: "desc",
 							},
 							{
-								column: "data.id",
+								column: "subquery.id",
 								order: "desc",
 							},
 						],
@@ -436,11 +436,11 @@ await describe("paginate()", async () => {
 						},
 						order: [
 							{
-								column: "data.name",
+								column: "subquery.name",
 								order: "desc",
 							},
 							{
-								column: "data.id",
+								column: "subquery.id",
 								order: "desc",
 							},
 						],
@@ -453,11 +453,11 @@ await describe("paginate()", async () => {
 						},
 						order: [
 							{
-								column: "data.name",
+								column: "subquery.name",
 								order: "desc",
 							},
 							{
-								column: "data.id",
+								column: "subquery.id",
 								order: "desc",
 							},
 						],
@@ -498,11 +498,11 @@ await describe("paginate()", async () => {
 						},
 						order: [
 							{
-								column: "data.name",
+								column: "subquery.name",
 								order: "asc",
 							},
 							{
-								column: "data.id",
+								column: "subquery.id",
 								order: "asc",
 							},
 						],
@@ -515,11 +515,11 @@ await describe("paginate()", async () => {
 						},
 						order: [
 							{
-								column: "data.name",
+								column: "subquery.name",
 								order: "asc",
 							},
 							{
-								column: "data.id",
+								column: "subquery.id",
 								order: "asc",
 							},
 						],
