@@ -13,6 +13,7 @@ A utility to have arbitrary ordering with cursor based pagination, as well as ne
   - [bun.sh](#bunsh)
   - [slonik](#slonik)
   - [Subquery pattern](#subquery-pattern)
+  - [sqlite](#sqlite)
 
 **Limitations**:
 
@@ -236,6 +237,50 @@ const unsortedUsers = await sql`
   order by ${fragments.order}
   limit 3
 `;
+
+// the applied order by might be different than the provided one to be used with `before` cursor
+// hence you should always call `toSorted()` with the same settings as the `orderBy` of paginate
+const users = toSorted(unsortedUsers, options.orderBy);
+
+// use with { after: nextPageCursor }
+const nextPageCursor = users.at(-1)?.cursor ?? undefined;
+// use with { before: previousPageCursor }
+const previousPageCursor = users.at(0)?.cursor ?? undefined;
+```
+
+### sqlite
+
+```ts
+import DatabaseSync from "node:sqlite";
+import { paginate, toSorted } from "pg-ination";
+import { sqliteAdapter } from "pg-ination/adapters/sqlite";
+
+const options = {
+  tableName: "foo",
+  orderBy: { column: "name", order: "desc" },
+};
+const paginateResult = paginate(options);
+const fragments = sqliteAdapter(options, paginateResult);
+
+const sql = new DatabaseSync(":memory:");
+
+// Fragments are escaped already
+
+const unsortedUsers = sql
+  .prepare(
+    `
+      select
+        "id",
+        ${fragments.cursor},
+        ${fragments.hasNextPage} as "hasNextPage",
+        ${fragments.hasPreviousPage} as "hasPreviousPage"
+      from "users"
+      where ${fragments.filter}
+      order by ${fragments.order}
+      limit 3
+    `
+  )
+  .all();
 
 // the applied order by might be different than the provided one to be used with `before` cursor
 // hence you should always call `toSorted()` with the same settings as the `orderBy` of paginate

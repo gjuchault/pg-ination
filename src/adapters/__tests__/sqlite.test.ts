@@ -1,89 +1,77 @@
 import { deepEqual } from "node:assert/strict";
+import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
-import {
-	type DatabasePool,
-	type IdentifierSqlToken,
-	type ValueExpression,
-	createPool,
-	sql,
-} from "slonik";
 
 import { type PaginateOptions, paginate } from "../../paginate.ts";
 import { toSorted } from "../../sort.ts";
-import { slonikAdapter } from "../slonik.ts";
+import { sqliteAdapter } from "../sqlite.ts";
 import { paginationTestData } from "./helpers.ts";
 
-// biome-ignore lint/complexity/useLiteralKeys: noPropertyAccessFromIndexSignature
-const dbUrl = process.env["DB_URL"];
-
-if (dbUrl === undefined) {
-	throw new Error("DB_URL is not set");
+function getClient(): DatabaseSync {
+	return new DatabaseSync(":memory:");
 }
 
-async function getClient(): Promise<DatabasePool> {
-	const pool = await createPool(dbUrl ?? "", {
-		idleTimeout: 1000,
-		statementTimeout: 1000,
-		connectionTimeout: 1000,
-		gracefulTerminationTimeout: 1000,
-		idleInTransactionSessionTimeout: 1000,
-	});
-
-	return pool;
-}
-
-async function query({
-	client,
+function query({
+	sql,
 	options,
 	extraField,
 }: {
-	client: DatabasePool;
+	sql: DatabaseSync;
 	options: PaginateOptions;
 	extraField?: string;
-}): Promise<readonly unknown[]> {
+}): readonly unknown[] {
 	const result = paginate(options);
-	const adapterResult = slonikAdapter(options, result);
+	const adapterResult = sqliteAdapter(options, result);
 
-	const data = await client.any(sql.unsafe`
-		select
-			${extraField !== undefined ? sql.unsafe`${sql.identifier([extraField])},` : sql.unsafe``}
-			${adapterResult.cursor} as "cursor",
-			${adapterResult.hasNextPage} as "hasNextPage",
-			${adapterResult.hasPreviousPage} as "hasPreviousPage"
-		from ${sql.identifier([options.tableName])}
-		where ${adapterResult.filter}
-		order by ${adapterResult.order}
-		limit 3
-	`);
+	const data = sql
+		.prepare(`
+				select
+					${extraField !== undefined ? `${extraField},` : ""}
+					${adapterResult.cursor} as "cursor",
+					${adapterResult.hasNextPage} as "hasNextPage",
+					${adapterResult.hasPreviousPage} as "hasPreviousPage"
+				from ${options.tableName}
+				where ${adapterResult.filter}
+				order by ${adapterResult.order}
+				limit 3
+			`)
+		.all();
 
-	return data;
+	// create a new object to avoid having null prototype objects
+	return Array.from(data).map((row) => ({ ...row }));
 }
 
-await describe("slonikAdapter", async () => {
+await describe("postgresAdapter", async () => {
 	await describe("given no ordering", async () => {
-		let pool: DatabasePool;
+		let sql: DatabaseSync;
 		let tableName: string;
 
 		before(async () => {
-			pool = await getClient();
-			tableName = "data-slonik-no-ordering";
-			await paginationTestData<ValueExpression, IdentifierSqlToken>({
-				sql: async (query, ...args) => {
-					return await pool.connect(async (connection) => {
-						return await connection.any(sql.unsafe(query, ...args));
-					});
+			sql = getClient();
+			tableName = "data_postgres_no_ordering";
+			await paginationTestData<string, string>({
+				sql(strings, ...parts) {
+					const fullQuery = strings.reduce((acc, str, i) => {
+						if (parts.length > i) {
+							return acc + str + (parts[i] ?? "null");
+						}
+
+						return acc + str;
+					}, "");
+
+					return Promise.resolve(sql.prepare(fullQuery).all());
 				},
-				tableName: sql.identifier([tableName]),
+				tableName,
 			});
 		});
 
 		after(async () => {
-			await pool.end();
+			await sql.close();
 		});
 
 		await it("when called getting first page", async () => {
 			const first3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -96,20 +84,20 @@ await describe("slonikAdapter", async () => {
 				{
 					id: "00000001-0000-0009-0000-000000000009",
 					cursor: "00000001-0000-0009-0000-000000000009",
-					hasNextPage: true,
-					hasPreviousPage: false,
+					hasNextPage: 1,
+					hasPreviousPage: 0,
 				},
 				{
 					id: "00000001-0000-0008-0000-000000000008",
 					cursor: "00000001-0000-0008-0000-000000000008",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0007-0000-000000000007",
 					cursor: "00000001-0000-0007-0000-000000000007",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 
@@ -118,7 +106,7 @@ await describe("slonikAdapter", async () => {
 
 		await it("when called getting second page", async () => {
 			const next3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: { after: "00000001-0000-0007-0000-000000000007" },
@@ -131,20 +119,20 @@ await describe("slonikAdapter", async () => {
 				{
 					id: "00000001-0000-0006-0000-000000000006",
 					cursor: "00000001-0000-0006-0000-000000000006",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0005-0000-000000000005",
 					cursor: "00000001-0000-0005-0000-000000000005",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0004-0000-000000000004",
 					cursor: "00000001-0000-0004-0000-000000000004",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 
@@ -153,7 +141,7 @@ await describe("slonikAdapter", async () => {
 
 		await it("when called getting back to first page", async () => {
 			const first3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -163,7 +151,7 @@ await describe("slonikAdapter", async () => {
 			});
 
 			const prev3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: { before: "00000001-0000-0006-0000-000000000006" },
@@ -182,7 +170,7 @@ await describe("slonikAdapter", async () => {
 		// before/after)
 		await it("when called getting back to middle page", async () => {
 			const prev3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: { before: "00000001-0000-0005-0000-000000000005" },
@@ -195,47 +183,47 @@ await describe("slonikAdapter", async () => {
 				{
 					id: "00000001-0000-0006-0000-000000000006",
 					cursor: "00000001-0000-0006-0000-000000000006",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0007-0000-000000000007",
 					cursor: "00000001-0000-0007-0000-000000000007",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0008-0000-000000000008",
 					cursor: "00000001-0000-0008-0000-000000000008",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 			deepEqual(toSorted(prev3), [
 				{
 					id: "00000001-0000-0008-0000-000000000008",
 					cursor: "00000001-0000-0008-0000-000000000008",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0007-0000-000000000007",
 					cursor: "00000001-0000-0007-0000-000000000007",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0006-0000-000000000006",
 					cursor: "00000001-0000-0006-0000-000000000006",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 		});
 
 		await it("when called getting the last page", async () => {
 			const last3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: { after: "00000001-0000-0004-0000-000000000004" },
@@ -248,20 +236,20 @@ await describe("slonikAdapter", async () => {
 				{
 					id: "00000001-0000-0003-0000-000000000003",
 					cursor: "00000001-0000-0003-0000-000000000003",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0002-0000-000000000002",
 					cursor: "00000001-0000-0002-0000-000000000002",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					id: "00000001-0000-0001-0000-000000000001",
 					cursor: "00000001-0000-0001-0000-000000000001",
-					hasNextPage: false,
-					hasPreviousPage: true,
+					hasNextPage: 0,
+					hasPreviousPage: 1,
 				},
 			]);
 			deepEqual(toSorted(last3), last3);
@@ -269,29 +257,35 @@ await describe("slonikAdapter", async () => {
 	});
 
 	await describe("given arbitrary order, asc", async () => {
-		let pool: DatabasePool;
+		let sql: DatabaseSync;
 		let tableName: string;
 
 		before(async () => {
-			pool = await getClient();
-			tableName = "data-slonik-arbitrary-ordering-asc";
-			await paginationTestData<ValueExpression, IdentifierSqlToken>({
-				sql: async (query, ...args) => {
-					return await pool.connect(async (connection) => {
-						return await connection.any(sql.unsafe(query, ...args));
-					});
+			sql = getClient();
+			tableName = "data_postgres_arbitrary_ordering_asc";
+			await paginationTestData<string, string>({
+				sql(strings, ...parts) {
+					const fullQuery = strings.reduce((acc, str, i) => {
+						if (parts.length > i) {
+							return acc + str + (parts[i] ?? "null");
+						}
+
+						return acc + str;
+					}, "");
+
+					return Promise.resolve(sql.prepare(fullQuery).all());
 				},
-				tableName: sql.identifier([tableName]),
+				tableName,
 			});
 		});
 
 		after(async () => {
-			await pool.end();
+			await sql.close();
 		});
 
 		await it("when called getting first page", async () => {
 			const first3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -304,20 +298,20 @@ await describe("slonikAdapter", async () => {
 				{
 					name: "AAAA",
 					cursor: "AAAA,00000001-0000-0001-0000-000000000001",
-					hasNextPage: true,
-					hasPreviousPage: false,
+					hasNextPage: 1,
+					hasPreviousPage: 0,
 				},
 				{
 					name: "BBBB",
 					cursor: "BBBB,00000001-0000-0002-0000-000000000002",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "CCCC",
 					cursor: "CCCC,00000001-0000-0003-0000-000000000003",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 			deepEqual(toSorted(first3, { column: "name", order: "asc" }), first3);
@@ -325,7 +319,7 @@ await describe("slonikAdapter", async () => {
 
 		await it("when called getting second page", async () => {
 			const next3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: { after: "CCCC,00000001-0000-0003-0000-000000000003" },
@@ -338,20 +332,20 @@ await describe("slonikAdapter", async () => {
 				{
 					name: "DDDD",
 					cursor: "DDDD,00000001-0000-0004-0000-000000000004",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "EEEE",
 					cursor: "EEEE,00000001-0000-0005-0000-000000000005",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "FFFF",
 					cursor: "FFFF,00000001-0000-0006-0000-000000000006",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 			deepEqual(toSorted(next3, { column: "name", order: "asc" }), next3);
@@ -359,7 +353,7 @@ await describe("slonikAdapter", async () => {
 
 		await it("when called getting back to first page", async () => {
 			const first3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -369,7 +363,7 @@ await describe("slonikAdapter", async () => {
 			});
 
 			const prev3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: { before: "DDDD,00000001-0000-0004-0000-000000000004" },
@@ -388,7 +382,7 @@ await describe("slonikAdapter", async () => {
 		// before/after)
 		await it("when called getting back to middle page", async () => {
 			const prev3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: { before: "EEEE,00000001-0000-0005-0000-000000000005" },
@@ -403,20 +397,20 @@ await describe("slonikAdapter", async () => {
 					{
 						name: "BBBB",
 						cursor: "BBBB,00000001-0000-0002-0000-000000000002",
-						hasNextPage: true,
-						hasPreviousPage: true,
+						hasNextPage: 1,
+						hasPreviousPage: 1,
 					},
 					{
 						name: "CCCC",
 						cursor: "CCCC,00000001-0000-0003-0000-000000000003",
-						hasNextPage: true,
-						hasPreviousPage: true,
+						hasNextPage: 1,
+						hasPreviousPage: 1,
 					},
 					{
 						name: "DDDD",
 						cursor: "DDDD,00000001-0000-0004-0000-000000000004",
-						hasNextPage: true,
-						hasPreviousPage: true,
+						hasNextPage: 1,
+						hasPreviousPage: 1,
 					},
 				].toReversed(),
 			);
@@ -424,27 +418,27 @@ await describe("slonikAdapter", async () => {
 				{
 					name: "BBBB",
 					cursor: "BBBB,00000001-0000-0002-0000-000000000002",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "CCCC",
 					cursor: "CCCC,00000001-0000-0003-0000-000000000003",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "DDDD",
 					cursor: "DDDD,00000001-0000-0004-0000-000000000004",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 		});
 
 		await it("when called getting the last page", async () => {
 			const last3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: { after: "FFFF,00000001-0000-0006-0000-000000000006" },
@@ -457,20 +451,20 @@ await describe("slonikAdapter", async () => {
 				{
 					name: "GGGG",
 					cursor: "GGGG,00000001-0000-0007-0000-000000000007",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "HHHH",
 					cursor: "HHHH,00000001-0000-0008-0000-000000000008",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "IIII",
 					cursor: "IIII,00000001-0000-0009-0000-000000000009",
-					hasNextPage: false,
-					hasPreviousPage: true,
+					hasNextPage: 0,
+					hasPreviousPage: 1,
 				},
 			]);
 			deepEqual(toSorted(last3, { column: "name", order: "asc" }), last3);
@@ -478,29 +472,35 @@ await describe("slonikAdapter", async () => {
 	});
 
 	await describe("given arbitrary order, desc", async () => {
-		let pool: DatabasePool;
+		let sql: DatabaseSync;
 		let tableName: string;
 
 		before(async () => {
-			pool = await getClient();
-			tableName = "data-slonik-arbitrary-ordering-desc";
-			await paginationTestData<ValueExpression, IdentifierSqlToken>({
-				sql: async (query, ...args) => {
-					return await pool.connect(async (connection) => {
-						return await connection.any(sql.unsafe(query, ...args));
-					});
+			sql = getClient();
+			tableName = "data_postgres_arbitrary_ordering_desc";
+			await paginationTestData<string, string>({
+				sql(strings, ...parts) {
+					const fullQuery = strings.reduce((acc, str, i) => {
+						if (parts.length > i) {
+							return acc + str + (parts[i] ?? "null");
+						}
+
+						return acc + str;
+					}, "");
+
+					return Promise.resolve(sql.prepare(fullQuery).all());
 				},
-				tableName: sql.identifier([tableName]),
+				tableName,
 			});
 		});
 
 		after(async () => {
-			await pool.end();
+			await sql.close();
 		});
 
 		await it("when called getting first page", async () => {
 			const first3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -513,20 +513,20 @@ await describe("slonikAdapter", async () => {
 				{
 					name: "IIII",
 					cursor: "IIII,00000001-0000-0009-0000-000000000009",
-					hasNextPage: true,
-					hasPreviousPage: false,
+					hasNextPage: 1,
+					hasPreviousPage: 0,
 				},
 				{
 					name: "HHHH",
 					cursor: "HHHH,00000001-0000-0008-0000-000000000008",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "GGGG",
 					cursor: "GGGG,00000001-0000-0007-0000-000000000007",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 			deepEqual(toSorted(first3, { column: "name", order: "desc" }), first3);
@@ -534,7 +534,7 @@ await describe("slonikAdapter", async () => {
 
 		await it("when called getting second page", async () => {
 			const next3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: { after: "GGGG,00000001-0000-0007-0000-000000000007" },
@@ -547,20 +547,20 @@ await describe("slonikAdapter", async () => {
 				{
 					name: "FFFF",
 					cursor: "FFFF,00000001-0000-0006-0000-000000000006",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "EEEE",
 					cursor: "EEEE,00000001-0000-0005-0000-000000000005",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "DDDD",
 					cursor: "DDDD,00000001-0000-0004-0000-000000000004",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 			deepEqual(toSorted(next3, { column: "name", order: "desc" }), next3);
@@ -568,7 +568,7 @@ await describe("slonikAdapter", async () => {
 
 		await it("when called getting back to first page", async () => {
 			const first3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -578,7 +578,7 @@ await describe("slonikAdapter", async () => {
 			});
 
 			const prev3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: { before: "FFFF,00000001-0000-0006-0000-000000000006" },
@@ -597,7 +597,7 @@ await describe("slonikAdapter", async () => {
 		// before/after)
 		await it("when called getting back to middle page", async () => {
 			const prev3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: { before: "EEEE,00000001-0000-0005-0000-000000000005" },
@@ -612,20 +612,20 @@ await describe("slonikAdapter", async () => {
 					{
 						name: "HHHH",
 						cursor: "HHHH,00000001-0000-0008-0000-000000000008",
-						hasNextPage: true,
-						hasPreviousPage: true,
+						hasNextPage: 1,
+						hasPreviousPage: 1,
 					},
 					{
 						name: "GGGG",
 						cursor: "GGGG,00000001-0000-0007-0000-000000000007",
-						hasNextPage: true,
-						hasPreviousPage: true,
+						hasNextPage: 1,
+						hasPreviousPage: 1,
 					},
 					{
 						name: "FFFF",
 						cursor: "FFFF,00000001-0000-0006-0000-000000000006",
-						hasNextPage: true,
-						hasPreviousPage: true,
+						hasNextPage: 1,
+						hasPreviousPage: 1,
 					},
 				].toReversed(),
 			);
@@ -633,27 +633,27 @@ await describe("slonikAdapter", async () => {
 				{
 					name: "HHHH",
 					cursor: "HHHH,00000001-0000-0008-0000-000000000008",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "GGGG",
 					cursor: "GGGG,00000001-0000-0007-0000-000000000007",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "FFFF",
 					cursor: "FFFF,00000001-0000-0006-0000-000000000006",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 			]);
 		});
 
 		await it("when called getting the last page", async () => {
 			const last3 = await query({
-				client: pool,
+				sql,
 				options: {
 					tableName,
 					pagination: { after: "DDDD,00000001-0000-0004-0000-000000000004" },
@@ -666,20 +666,20 @@ await describe("slonikAdapter", async () => {
 				{
 					name: "CCCC",
 					cursor: "CCCC,00000001-0000-0003-0000-000000000003",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "BBBB",
 					cursor: "BBBB,00000001-0000-0002-0000-000000000002",
-					hasNextPage: true,
-					hasPreviousPage: true,
+					hasNextPage: 1,
+					hasPreviousPage: 1,
 				},
 				{
 					name: "AAAA",
 					cursor: "AAAA,00000001-0000-0001-0000-000000000001",
-					hasNextPage: false,
-					hasPreviousPage: true,
+					hasNextPage: 0,
+					hasPreviousPage: 1,
 				},
 			]);
 			deepEqual(toSorted(last3, { column: "name", order: "desc" }), last3);

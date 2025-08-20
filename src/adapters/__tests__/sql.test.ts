@@ -57,10 +57,10 @@ async function query({
 
 	const data = await client.query(rawSql`
 		select
+			${extraField !== undefined ? `${client.escapeIdentifier(extraField)},` : ""}
 			${adapterResult.cursor} as "cursor",
 			${adapterResult.hasNextPage} as "hasNextPage",
-			${adapterResult.hasPreviousPage} as "hasPreviousPage",
-			${extraField !== undefined ? client.escapeIdentifier(extraField) : ""}
+			${adapterResult.hasPreviousPage} as "hasPreviousPage"
 		from ${client.escapeIdentifier(options.tableName)}
 		where ${adapterResult.filter}
 		order by ${adapterResult.order}

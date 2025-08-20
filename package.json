@@ -22,6 +22,10 @@
 		"./adapters/slonik": {
 			"import": "./build/adapters/slonik.js",
 			"types": "./build/adapters/slonik.d.ts"
+		},
+		"./adapters/sqlite": {
+			"import": "./build/adapters/sqlite.js",
+			"types": "./build/adapters/sqlite.d.ts"
 		}
 	},
 	"license": "MIT",
