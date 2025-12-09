@@ -1,10 +1,12 @@
 import { deepEqual } from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import postgres from "postgres";
+import { sql as drizzleSql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 
 import { type PaginateOptions, paginate } from "../../paginate.ts";
 import { toSorted } from "../../sort.ts";
-import { postgresAdapter } from "../postgres.ts";
+import { drizzleAdapter } from "../drizzle.ts";
 import { paginationTestData } from "./helpers.ts";
 
 // biome-ignore lint/complexity/useLiteralKeys: noPropertyAccessFromIndexSignature
@@ -14,62 +16,84 @@ if (dbUrl === undefined) {
 	throw new Error("DB_URL is not set");
 }
 
-function getClient(): postgres.Sql {
-	const pool = postgres(dbUrl ?? "", {
-		idle_timeout: 1000,
+function getClient(): Pool {
+	const pool = new Pool({
+		connectionString: dbUrl,
+		statement_timeout: 1_000,
+		query_timeout: 1_000,
+		lock_timeout: 1_000,
+		connectionTimeoutMillis: 1_000,
+		idle_in_transaction_session_timeout: 1_000,
 	});
 
 	return pool;
 }
 
 async function query({
-	sql,
+	db,
 	options,
 	extraField,
 }: {
-	sql: postgres.Sql;
+	db: ReturnType<typeof drizzle>;
 	options: PaginateOptions;
 	extraField?: string;
 }): Promise<readonly unknown[]> {
-	const result = paginate(options);
-	const adapterResult = postgresAdapter(options, result);
+	const paginateResult = paginate(options);
+	const adapterResult = drizzleAdapter(options, paginateResult);
 
-	const data = await sql`
-		select
-			${extraField !== undefined ? sql`${sql(extraField)},` : sql``}
-			${adapterResult.cursor} as "cursor",
-			${adapterResult.hasNextPage} as "hasNextPage",
-			${adapterResult.hasPreviousPage} as "hasPreviousPage"
-		from ${sql(options.tableName)}
-		where ${adapterResult.filter}
-		order by ${adapterResult.order}
-		limit 3
-	`;
+	const queryResult = await db.execute(
+		drizzleSql`
+			select
+				${extraField !== undefined ? drizzleSql.raw(`${extraField},`) : drizzleSql.raw("")}
+				${adapterResult.cursor} as "cursor",
+				${adapterResult.hasNextPage} as "hasNextPage",
+				${adapterResult.hasPreviousPage} as "hasPreviousPage"
+			from ${drizzleSql.raw(`"${options.tableName}"`)}
+			where ${adapterResult.filter}
+			order by ${adapterResult.order}
+			limit 3
+		`,
+	);
 
-	return Array.from(data);
+	return queryResult.rows;
 }
 
-await describe("postgresAdapter", async () => {
+function rawSql(strings: TemplateStringsArray, ...args: string[]): string {
+	let output = "";
+
+	for (let i = 0; i < strings.length; i += 1) {
+		output += strings[i] + (args[i] ?? "");
+	}
+
+	return output;
+}
+
+await describe("drizzleAdapter", async () => {
 	await describe("given no ordering", async () => {
-		let sql: postgres.Sql;
+		let pool: Pool;
+		let db: ReturnType<typeof drizzle>;
 		let tableName: string;
 
 		before(async () => {
-			sql = getClient();
-			tableName = "data-postgres-no-ordering";
-			await paginationTestData<postgres.Fragment, postgres.Helper<string, []>>({
-				sql: sql,
-				tableName: sql(tableName),
+			pool = getClient();
+			db = drizzle(pool);
+			tableName = "data-drizzle-no-ordering";
+			await paginationTestData<string, string>({
+				sql: async (query, ...args) => {
+					const result = await pool.query(rawSql(query, ...args));
+					return result.rows;
+				},
+				tableName: `"${tableName}"`,
 			});
 		});
 
 		after(async () => {
-			await sql.end();
+			await pool.end();
 		});
 
 		await it("when called getting first page", async () => {
 			const first3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -104,7 +128,7 @@ await describe("postgresAdapter", async () => {
 
 		await it("when called getting second page", async () => {
 			const next3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: { after: "00000001-0000-0007-0000-000000000007" },
@@ -139,7 +163,7 @@ await describe("postgresAdapter", async () => {
 
 		await it("when called getting back to first page", async () => {
 			const first3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -149,7 +173,7 @@ await describe("postgresAdapter", async () => {
 			});
 
 			const prev3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: { before: "00000001-0000-0006-0000-000000000006" },
@@ -168,7 +192,7 @@ await describe("postgresAdapter", async () => {
 		// before/after)
 		await it("when called getting back to middle page", async () => {
 			const prev3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: { before: "00000001-0000-0005-0000-000000000005" },
@@ -221,7 +245,7 @@ await describe("postgresAdapter", async () => {
 
 		await it("when called getting the last page", async () => {
 			const last3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: { after: "00000001-0000-0004-0000-000000000004" },
@@ -255,25 +279,30 @@ await describe("postgresAdapter", async () => {
 	});
 
 	await describe("given arbitrary order, asc", async () => {
-		let sql: postgres.Sql;
+		let pool: Pool;
+		let db: ReturnType<typeof drizzle>;
 		let tableName: string;
 
 		before(async () => {
-			sql = getClient();
-			tableName = "data-postgres-arbitrary-ordering-asc";
-			await paginationTestData<postgres.Fragment, postgres.Helper<string, []>>({
-				sql,
-				tableName: sql(tableName),
+			pool = getClient();
+			db = drizzle(pool);
+			tableName = "data-drizzle-arbitrary-ordering-asc";
+			await paginationTestData<string, string>({
+				sql: async (query, ...args) => {
+					const result = await pool.query(rawSql(query, ...args));
+					return result.rows;
+				},
+				tableName: `"${tableName}"`,
 			});
 		});
 
 		after(async () => {
-			await sql.end();
+			await pool.end();
 		});
 
 		await it("when called getting first page", async () => {
 			const first3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -307,7 +336,7 @@ await describe("postgresAdapter", async () => {
 
 		await it("when called getting second page", async () => {
 			const next3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: { after: "CCCC,00000001-0000-0003-0000-000000000003" },
@@ -341,7 +370,7 @@ await describe("postgresAdapter", async () => {
 
 		await it("when called getting back to first page", async () => {
 			const first3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -351,7 +380,7 @@ await describe("postgresAdapter", async () => {
 			});
 
 			const prev3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: { before: "DDDD,00000001-0000-0004-0000-000000000004" },
@@ -370,7 +399,7 @@ await describe("postgresAdapter", async () => {
 		// before/after)
 		await it("when called getting back to middle page", async () => {
 			const prev3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: { before: "EEEE,00000001-0000-0005-0000-000000000005" },
@@ -426,7 +455,7 @@ await describe("postgresAdapter", async () => {
 
 		await it("when called getting the last page", async () => {
 			const last3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: { after: "FFFF,00000001-0000-0006-0000-000000000006" },
@@ -460,25 +489,30 @@ await describe("postgresAdapter", async () => {
 	});
 
 	await describe("given arbitrary order, desc", async () => {
-		let sql: postgres.Sql;
+		let pool: Pool;
+		let db: ReturnType<typeof drizzle>;
 		let tableName: string;
 
 		before(async () => {
-			sql = getClient();
-			tableName = "data-postgres-arbitrary-ordering-desc";
-			await paginationTestData<postgres.Fragment, postgres.Helper<string, []>>({
-				sql,
-				tableName: sql(tableName),
+			pool = getClient();
+			db = drizzle(pool);
+			tableName = "data-drizzle-arbitrary-ordering-desc";
+			await paginationTestData<string, string>({
+				sql: async (query, ...args) => {
+					const result = await pool.query(rawSql(query, ...args));
+					return result.rows;
+				},
+				tableName: `"${tableName}"`,
 			});
 		});
 
 		after(async () => {
-			await sql.end();
+			await pool.end();
 		});
 
 		await it("when called getting first page", async () => {
 			const first3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -512,7 +546,7 @@ await describe("postgresAdapter", async () => {
 
 		await it("when called getting second page", async () => {
 			const next3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: { after: "GGGG,00000001-0000-0007-0000-000000000007" },
@@ -546,7 +580,7 @@ await describe("postgresAdapter", async () => {
 
 		await it("when called getting back to first page", async () => {
 			const first3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: undefined,
@@ -556,7 +590,7 @@ await describe("postgresAdapter", async () => {
 			});
 
 			const prev3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: { before: "FFFF,00000001-0000-0006-0000-000000000006" },
@@ -575,7 +609,7 @@ await describe("postgresAdapter", async () => {
 		// before/after)
 		await it("when called getting back to middle page", async () => {
 			const prev3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: { before: "EEEE,00000001-0000-0005-0000-000000000005" },
@@ -631,7 +665,7 @@ await describe("postgresAdapter", async () => {
 
 		await it("when called getting the last page", async () => {
 			const last3 = await query({
-				sql,
+				db,
 				options: {
 					tableName,
 					pagination: { after: "DDDD,00000001-0000-0004-0000-000000000004" },

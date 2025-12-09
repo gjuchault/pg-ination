@@ -9,11 +9,13 @@ A utility to have arbitrary ordering with cursor based pagination, as well as ne
 - [Options](#options)
 - [Adapter result](#adapter-result)
 - [Usage](#usage)
-  - [node-postgres](#node-postgres)
-  - [bun.sh](#bunsh)
-  - [slonik](#slonik)
-  - [Subquery pattern](#subquery-pattern)
-  - [sqlite](#sqlite)
+- [node-postgres](#node-postgres)
+- [bun.sh](#bunsh)
+- [slonik](#slonik)
+- [postgres](#postgres)
+- [drizzle](#drizzle)
+- [Subquery pattern](#subquery-pattern)
+- [sqlite](#sqlite)
 
 **Limitations**:
 
@@ -241,6 +243,51 @@ const unsortedUsers = await sql`
 // the applied order by might be different than the provided one to be used with `before` cursor
 // hence you should always call `toSorted()` with the same settings as the `orderBy` of paginate
 const users = toSorted(unsortedUsers, options.orderBy);
+
+// use with { after: nextPageCursor }
+const nextPageCursor = users.at(-1)?.cursor ?? undefined;
+// use with { before: previousPageCursor }
+const previousPageCursor = users.at(0)?.cursor ?? undefined;
+```
+
+### drizzle
+
+```ts
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+import { paginate, toSorted } from "pg-ination";
+import { drizzleAdapter } from "pg-ination/adapters/drizzle";
+
+const options = {
+  tableName: "foo",
+  orderBy: { column: "name", order: "desc" },
+};
+const paginateResult = paginate(options);
+const fragments = drizzleAdapter(options, paginateResult);
+
+const pool = new Pool({ connectionString: process.env["DB_URI"] });
+const db = drizzle(pool);
+
+// Fragments are escaped already
+
+const unsortedUsers = await db.execute(
+  sql`
+    select
+      "id",
+      ${fragments.cursor} as "cursor",
+      ${fragments.hasNextPage} as "hasNextPage",
+      ${fragments.hasPreviousPage} as "hasPreviousPage"
+    from "users"
+    where ${fragments.filter}
+    order by ${fragments.order}
+    limit 3
+  `
+);
+
+// the applied order by might be different than the provided one to be used with `before` cursor
+// hence you should always call `toSorted()` with the same settings as the `orderBy` of paginate
+const users = toSorted(unsortedUsers.rows, options.orderBy);
 
 // use with { after: nextPageCursor }
 const nextPageCursor = users.at(-1)?.cursor ?? undefined;

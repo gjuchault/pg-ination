@@ -17,14 +17,10 @@ if (dbUrl === undefined) {
 async function getClient(): Promise<Client> {
 	const sql = new Client({
 		connectionString: dbUrl,
-		// biome-ignore lint/style/useNamingConvention: pg
 		statement_timeout: 1_000,
-		// biome-ignore lint/style/useNamingConvention: pg
 		query_timeout: 1_000,
-		// biome-ignore lint/style/useNamingConvention: pg
 		lock_timeout: 1_000,
 		connectionTimeoutMillis: 1_000,
-		// biome-ignore lint/style/useNamingConvention: pg
 		idle_in_transaction_session_timeout: 1_000,
 	});
 
