@@ -1,8 +1,44 @@
-import pgUtils from "pg/lib/utils.js";
 import type { PaginateOptions, PaginateResult } from "../../paginate.ts";
 import type { AdapterResult } from "../index.ts";
 
-const { escapeIdentifier, escapeLiteral } = pgUtils;
+// ported from pg/lib/utils.js
+export function escapeIdentifier(str: string): string {
+	return `"${str.replace(/"/g, '""')}"`;
+}
+
+// ported from pg/lib/utils.js
+export function escapeLiteral(str: string): string {
+	let hasBackslash = false;
+	let escaped = "'";
+
+	if (str == null) {
+		return "''";
+	}
+
+	if (typeof str !== "string") {
+		return "''";
+	}
+
+	for (let i = 0; i < str.length; i++) {
+		const c = str[i];
+		if (c === "'") {
+			escaped += c + c;
+		} else if (c === "\\") {
+			escaped += c + c;
+			hasBackslash = true;
+		} else {
+			escaped += c;
+		}
+	}
+
+	escaped += "'";
+
+	if (hasBackslash === true) {
+		escaped = ` E${escaped}`;
+	}
+
+	return escaped;
+}
 
 export function basePgAdapter(
 	options: PaginateOptions,

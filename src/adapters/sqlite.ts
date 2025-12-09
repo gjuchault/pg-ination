@@ -1,8 +1,6 @@
-import pgUtils from "pg/lib/utils.js";
 import type { AdapterResult } from "../index.ts";
 import type { PaginateOptions, PaginateResult } from "../paginate.ts";
-
-const { escapeIdentifier, escapeLiteral } = pgUtils;
+import { escapeIdentifier, escapeLiteral } from "./base-pg/index.ts";
 
 export function sqliteAdapter(
 	options: PaginateOptions,
