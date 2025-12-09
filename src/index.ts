@@ -1,5 +1,4 @@
-// biome-ignore lint/performance/noBarrelFile: module entry point
-export { paginate } from "./paginate.ts";
-export { toSorted, SortOptions } from "./sort.ts";
-export type { PaginateResult, PaginateOptions } from "./paginate.ts";
 export type { Adapter, AdapterResult } from "./adapters/index.ts";
+export type { PaginateOptions, PaginateResult } from "./paginate.ts";
+export { paginate } from "./paginate.ts";
+export { SortOptions, toSorted } from "./sort.ts";

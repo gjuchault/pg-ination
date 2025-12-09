@@ -127,7 +127,6 @@ function orEmptyStr(input: string): string {
 	return `coalesce(${input}::text, '')`;
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: not _really_ complex
 function applyOrder(order: PaginateResult["order"], sql_: Sql_): string {
 	if (order.length > 2) {
 		throw new Error("No support for more than 1 column ordering");

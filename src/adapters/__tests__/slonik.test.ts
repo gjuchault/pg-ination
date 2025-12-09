@@ -1,11 +1,11 @@
 import { deepEqual } from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import {
+	createPool,
 	type DatabasePool,
 	type IdentifierSqlToken,
-	type ValueExpression,
-	createPool,
 	sql,
+	type ValueExpression,
 } from "slonik";
 
 import { type PaginateOptions, paginate } from "../../paginate.ts";
