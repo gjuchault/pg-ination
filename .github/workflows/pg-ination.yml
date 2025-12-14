@@ -5,6 +5,10 @@ on: [push]
 env:
   NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+permissions:
+  id-token: write # Required for OIDC
+  contents: write # Required for github releases
+
 jobs:
   dependencies:
     name: 📦 Dependencies
