@@ -29,19 +29,25 @@ function getClient(): Pool {
 	return pool;
 }
 
-async function query({
+type QueryResult<ExtraField extends string | undefined> = {
+	cursor: string;
+	hasNextPage: boolean;
+	hasPreviousPage: boolean;
+} & { [Key in Exclude<ExtraField, undefined>]: string | null };
+
+async function query<ExtraField extends string | undefined>({
 	db,
 	options,
 	extraField,
 }: {
 	db: ReturnType<typeof drizzle>;
 	options: PaginateOptions;
-	extraField?: string;
-}): Promise<readonly unknown[]> {
+	extraField?: ExtraField;
+}): Promise<QueryResult<ExtraField>[]> {
 	const paginateResult = paginate(options);
 	const adapterResult = drizzleAdapter(options, paginateResult);
 
-	const queryResult = await db.execute(
+	const queryResult = await db.execute<QueryResult<ExtraField>>(
 		drizzleSql`
 			select
 				${extraField !== undefined ? drizzleSql.raw(`${extraField},`) : drizzleSql.raw("")}
@@ -55,7 +61,7 @@ async function query({
 		`,
 	);
 
-	return queryResult.rows;
+	return queryResult.rows as QueryResult<ExtraField>[];
 }
 
 function rawSql(strings: TemplateStringsArray, ...args: string[]): string {

@@ -32,15 +32,21 @@ async function getClient(): Promise<DatabasePool> {
 	return pool;
 }
 
-async function query({
+type QueryResult<ExtraField extends string | undefined> = {
+	cursor: string;
+	hasNextPage: boolean;
+	hasPreviousPage: boolean;
+} & { [Key in Exclude<ExtraField, undefined>]: string | null };
+
+async function query<ExtraField extends string | undefined>({
 	client,
 	options,
 	extraField,
 }: {
 	client: DatabasePool;
 	options: PaginateOptions;
-	extraField?: string;
-}): Promise<readonly unknown[]> {
+	extraField?: ExtraField;
+}): Promise<QueryResult<ExtraField>[]> {
 	const result = paginate(options);
 	const adapterResult = slonikAdapter(options, result);
 
@@ -56,7 +62,7 @@ async function query({
 		limit 3
 	`);
 
-	return data;
+	return data as QueryResult<ExtraField>[];
 }
 
 await describe("slonikAdapter", async () => {

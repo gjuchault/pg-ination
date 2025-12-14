@@ -16,15 +16,21 @@ const { afterAll, beforeAll, describe, expect, test } = await import(
 	"bun:test"
 );
 
-async function query({
+type QueryResult<ExtraField extends string | undefined> = {
+	cursor: string;
+	hasNextPage: boolean;
+	hasPreviousPage: boolean;
+} & { [Key in Exclude<ExtraField, undefined>]: string | null };
+
+async function query<ExtraField extends string | undefined>({
 	sql,
 	options,
 	extraField,
 }: {
 	sql: SQL;
 	options: PaginateOptions;
-	extraField?: string;
-}): Promise<unknown[]> {
+	extraField?: ExtraField;
+}): Promise<QueryResult<ExtraField>[]> {
 	const result = paginate(options);
 	const adapterResult = bunAdapter(options, result);
 
@@ -765,7 +771,7 @@ describe("bunAdapter", async () => {
 			const first3Sorted = toSorted(first3, {
 				column: "name",
 				order: "asc",
-			}) as [{ cursor: string }, ...{ cursor: string }[]];
+			});
 
 			const next3 = await query({
 				sql,
@@ -780,13 +786,13 @@ describe("bunAdapter", async () => {
 			const next3Sorted = toSorted(next3, {
 				column: "name",
 				order: "asc",
-			}) as [{ cursor: string }, ...{ cursor: string }[]];
+			});
 
 			const prev3 = await query({
 				sql,
 				options: {
 					tableName,
-					pagination: { before: next3Sorted[0].cursor },
+					pagination: { before: next3Sorted[0]?.cursor ?? "" },
 					orderBy: { column: "name", order: "asc" },
 				},
 				extraField: "id",

@@ -11,15 +11,21 @@ function getClient(): DatabaseSync {
 	return new DatabaseSync(":memory:");
 }
 
-function query({
+type QueryResult<ExtraField extends string | undefined> = {
+	cursor: string;
+	hasNextPage: boolean;
+	hasPreviousPage: boolean;
+} & { [Key in Exclude<ExtraField, undefined>]: string | null };
+
+async function query<ExtraField extends string | undefined>({
 	sql,
 	options,
 	extraField,
 }: {
 	sql: DatabaseSync;
 	options: PaginateOptions;
-	extraField?: string;
-}): readonly unknown[] {
+	extraField?: ExtraField;
+}): Promise<QueryResult<ExtraField>[]> {
 	const result = paginate(options);
 	const adapterResult = sqliteAdapter(options, result);
 
@@ -38,7 +44,9 @@ function query({
 		.all();
 
 	// create a new object to avoid having null prototype objects
-	return Array.from(data).map((row) => ({ ...row }));
+	return Array.from(data).map((row) => ({
+		...row,
+	})) as QueryResult<ExtraField>[];
 }
 
 await describe("postgresAdapter", async () => {

@@ -39,15 +39,21 @@ function rawSql(strings: TemplateStringsArray, ...args: string[]): string {
 	return output;
 }
 
-async function query({
+type QueryResult<ExtraField extends string | undefined> = {
+	cursor: string;
+	hasNextPage: boolean;
+	hasPreviousPage: boolean;
+} & { [Key in Exclude<ExtraField, undefined>]: string | null };
+
+async function query<ExtraField extends string | undefined>({
 	client,
 	options,
 	extraField,
 }: {
 	client: Client;
 	options: PaginateOptions;
-	extraField?: string;
-}): Promise<readonly unknown[]> {
+	extraField?: ExtraField;
+}): Promise<QueryResult<ExtraField>[]> {
 	const result = paginate(options);
 	const adapterResult = pgAdapter(options, result);
 
@@ -798,7 +804,7 @@ await describe("sqlAdapter", async () => {
 			const first3Sorted = toSorted(first3, {
 				column: "name",
 				order: "asc",
-			}) as [{ cursor: string }, ...{ cursor: string }[]];
+			});
 
 			const next3 = await query({
 				client: sql,
@@ -813,13 +819,13 @@ await describe("sqlAdapter", async () => {
 			const next3Sorted = toSorted(next3, {
 				column: "name",
 				order: "asc",
-			}) as [{ cursor: string }, ...{ cursor: string }[]];
+			});
 
 			const prev3 = await query({
 				client: sql,
 				options: {
 					tableName,
-					pagination: { before: next3Sorted[0].cursor },
+					pagination: { before: next3Sorted[0]?.cursor ?? "" },
 					orderBy: { column: "name", order: "asc" },
 				},
 				extraField: "id",

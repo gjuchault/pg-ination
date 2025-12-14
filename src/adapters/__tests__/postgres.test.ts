@@ -22,21 +22,27 @@ function getClient(): postgres.Sql {
 	return pool;
 }
 
-async function query({
+type QueryResult<ExtraField extends string | undefined> = {
+	cursor: string;
+	hasNextPage: boolean;
+	hasPreviousPage: boolean;
+} & { [Key in Exclude<ExtraField, undefined>]: string | null };
+
+async function query<ExtraField extends string | undefined>({
 	sql,
 	options,
 	extraField,
 }: {
 	sql: postgres.Sql;
 	options: PaginateOptions;
-	extraField?: string;
-}): Promise<readonly unknown[]> {
+	extraField?: ExtraField;
+}): Promise<QueryResult<ExtraField>[]> {
 	const result = paginate(options);
 	const adapterResult = postgresAdapter(options, result);
 
 	const data = await sql`
 		select
-			${extraField !== undefined ? sql`${sql(extraField)},` : sql``}
+			${extraField !== undefined ? sql`${sql(extraField as string)},` : sql``}
 			${adapterResult.cursor} as "cursor",
 			${adapterResult.hasNextPage} as "hasNextPage",
 			${adapterResult.hasPreviousPage} as "hasPreviousPage"
@@ -46,7 +52,7 @@ async function query({
 		limit 3
 	`;
 
-	return Array.from(data);
+	return Array.from(data) as QueryResult<ExtraField>[];
 }
 
 await describe("postgresAdapter", async () => {
