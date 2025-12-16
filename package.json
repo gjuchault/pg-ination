@@ -60,6 +60,11 @@
 		"cz": "cz",
 		"semantic-release": "semantic-release"
 	},
+	"config": {
+		"commitizen": {
+			"path": "./node_modules/@ryansonshine/cz-conventional-changelog"
+		}
+	},
 	"peerDependencies": {
 		"pg": ">=8",
 		"postgres": "^3.4.7",
