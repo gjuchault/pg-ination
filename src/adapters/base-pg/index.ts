@@ -1,4 +1,9 @@
-import type { PaginateOptions, PaginateResult } from "../../paginate.ts";
+import type {
+	Filter,
+	Order,
+	PaginateOptions,
+	PaginateResult,
+} from "../../paginate.ts";
 import type { AdapterResult } from "../index.ts";
 
 // ported from pg/lib/utils.js
@@ -47,7 +52,7 @@ export function basePgAdapter(
 	let cursor = `'1'`;
 	const sql_ = sqlOrLiteral(options);
 
-	const filter = applyFilter(result.filter, sql_);
+	const filter = applyFilter(result.filter, sql_, true);
 	const order = applyOrder(result.order, sql_);
 	let hasNextPage = "false";
 	let hasPreviousPage = "false";
@@ -66,19 +71,37 @@ export function basePgAdapter(
 	if (result.hasNextPage !== undefined) {
 		hasNextPage = `exists (
 			select "subquery"."id" from ${sql_(options.tableName)} as ${sql_("subquery")}
-			where ${applyFilter(result.hasNextPage.filter, sql_)}
+			where ${applyFilters(result.hasNextPage.filters, sql_)}
 			order by ${applyOrder(result.hasNextPage.order, sql_)}
 			limit 1
 		)`;
+
+		if (result.hasNextPageNullColumn !== undefined) {
+			hasNextPage = `(${hasNextPage} or exists (
+				select "subquery"."id" from ${sql_(options.tableName)} as ${sql_("subquery")}
+				where ${applyFilters(result.hasNextPageNullColumn.filters, sql_)}
+				order by ${applyOrder(result.hasNextPageNullColumn.order, sql_)}
+				limit 1
+			))`;
+		}
 	}
 
 	if (result.hasPreviousPage !== undefined) {
 		hasPreviousPage = `exists (
 			select "subquery"."id" from ${sql_(options.tableName)} as ${sql_("subquery")}
-			where ${applyFilter(result.hasPreviousPage.filter, sql_)}
+			where ${applyFilters(result.hasPreviousPage.filters, sql_)}
 			order by ${applyOrder(result.hasPreviousPage.order, sql_)}
 			limit 1
 		)`;
+
+		if (result.hasPreviousPageNullColumn !== undefined) {
+			hasPreviousPage = `(${hasPreviousPage} or exists (
+				select "subquery"."id" from ${sql_(options.tableName)} as ${sql_("subquery")}
+				where ${applyFilters(result.hasPreviousPageNullColumn.filters, sql_)}
+				order by ${applyOrder(result.hasPreviousPageNullColumn.order, sql_)}
+				limit 1
+			))`;
+		}
 	}
 
 	return {
@@ -90,32 +113,64 @@ export function basePgAdapter(
 	};
 }
 
-function applyFilter(filter: PaginateResult["filter"], sql_: Sql_): string {
+function applyFilter(
+	filter: Filter | undefined,
+	sql_: Sql_,
+	coalesceNulls = false,
+): string {
 	if (filter === undefined) {
 		return "true";
 	}
 
-	const { left, right, operator } = filter;
-	if (left.length === 1 && right.length === 1) {
-		if (operator === ">") {
-			return `${sql_(left[0], orEmptyStr)} > ${sql_(right[0], orEmptyStr)}`;
-		}
-
-		return `${sql_(left[0], orEmptyStr)} < ${sql_(right[0], orEmptyStr)}`;
+	if (filter.operator === "is not null") {
+		return `${sql_(filter.left[0])} is not null`;
 	}
 
-	if (left.length === 2 && right.length === 2) {
-		if (operator === ">") {
-			return `(${sql_(left[0], orEmptyStr)}, ${sql_(left[1], orEmptyStr)}) > (${sql_(right[0], orEmptyStr)}, ${sql_(right[1], orEmptyStr)})`;
-		}
-
-		return `(${sql_(left[0], orEmptyStr)}, ${sql_(left[1], orEmptyStr)}) < (${sql_(right[0], orEmptyStr)}, ${sql_(right[1], orEmptyStr)})`;
+	if (filter.operator === "is null") {
+		return `${sql_(filter.left[0])} is null`;
 	}
 
-	throw new Error("No support for more than 1 column ordering");
+	if (filter.operator === ">" || filter.operator === "<") {
+		const { left, right, operator } = filter;
+		if (left.length === 1 && right.length === 1) {
+			if (operator === ">") {
+				return `${sql_(left[0])} > ${sql_(right[0])}`;
+			}
+
+			return `${sql_(left[0])} < ${sql_(right[0])}`;
+		}
+
+		if (left.length === 2 && right.length === 2) {
+			if (operator === ">") {
+				if (coalesceNulls) {
+					const right0 = (right[0] ?? "").length === 0 ? "1" : right[0];
+					return `(${sql_(left[0], or1)}, ${sql_(left[1])}) > (${sql_(right0, or1)}, ${sql_(right[1])})`;
+				}
+				return `(${sql_(left[0])}, ${sql_(left[1])}) > (${sql_(right[0])}, ${sql_(right[1])})`;
+			}
+
+			if (coalesceNulls) {
+				const right0 = (right[0] ?? "").length === 0 ? "1" : right[0];
+				return `(${sql_(left[0], or1)}, ${sql_(left[1])}) < (${sql_(right0, or1)}, ${sql_(right[1])})`;
+			}
+			return `(${sql_(left[0])}, ${sql_(left[1])}) < (${sql_(right[0])}, ${sql_(right[1])})`;
+		}
+
+		throw new Error("No support for more than 1 column ordering");
+	}
+
+	throw new Error("No support for this filter");
 }
 
-// this is used as with bun, we should pass identifiers as `${sql(identifier)}` and values as `${value}`
+function applyFilters(filters: Filter[], sql_: Sql_): string {
+	return filters.map((filter) => applyFilter(filter, sql_)).join(" and ");
+}
+
+function or1(input: string) {
+	return `coalesce(${input}::text, '1')`;
+}
+
+// this is used since in bun, we should pass identifiers as `${sql(identifier)}` and values as `${value}`
 type Sql_ = (
 	input: string | undefined,
 	wrapper?: (input: string) => string,
@@ -159,11 +214,7 @@ function sqlOrLiteral(options: PaginateOptions): Sql_ {
 	};
 }
 
-function orEmptyStr(input: string): string {
-	return `coalesce(${input}::text, '')`;
-}
-
-function applyOrder(order: PaginateResult["order"], sql_: Sql_): string {
+function applyOrder(order: Order[], sql_: Sql_): string {
 	if (order.length > 2) {
 		throw new Error("No support for more than 1 column ordering");
 	}

@@ -30,8 +30,6 @@ async function runTests({
 			program,
 			[
 				...programOptions,
-				"--disable-warning=ExperimentalWarning",
-				"--experimental-strip-types",
 				"--test",
 				...nodeOptions,
 				...(filesFilter !== "" ? filesFilter.split(" ") : nodeTestsFiles),

@@ -5,7 +5,11 @@ import postgres from "postgres";
 import { type PaginateOptions, paginate } from "../../paginate.ts";
 import { toSorted } from "../../sort.ts";
 import { postgresAdapter } from "../postgres.ts";
-import { paginationTestData } from "./helpers.ts";
+import {
+	paginationTestData,
+	paginationTestDataWithAmount,
+	paginationTestDataWithDate,
+} from "./helpers.ts";
 
 // biome-ignore lint/complexity/useLiteralKeys: noPropertyAccessFromIndexSignature
 const dbUrl = process.env["DB_URL"];
@@ -667,6 +671,420 @@ await describe("postgresAdapter", async () => {
 				},
 			]);
 			deepEqual(toSorted(last3, { column: "name", order: "desc" }), last3);
+		});
+	});
+
+	await describe("given order by numeric field (amount), asc", async () => {
+		let sql: postgres.Sql;
+		let tableName: string;
+
+		before(async () => {
+			sql = getClient();
+			tableName = "data-postgres-amount-ordering-asc";
+			await paginationTestDataWithAmount<
+				postgres.Fragment,
+				postgres.Helper<string, []>
+			>({
+				sql,
+				tableName: sql(tableName),
+			});
+		});
+
+		after(async () => {
+			await sql.end();
+		});
+
+		await it("when called getting first page", async () => {
+			const first3 = await query({
+				sql,
+				options: {
+					tableName,
+					pagination: undefined,
+					orderBy: { column: "amount", order: "asc" },
+				},
+				extraField: "amount",
+			});
+
+			deepEqual(first3, [
+				{
+					amount: "50",
+					cursor: "50,00000001-0000-0003-0000-000000000003",
+					hasNextPage: true,
+					hasPreviousPage: false,
+				},
+				{
+					amount: "75",
+					cursor: "75,00000001-0000-0007-0000-000000000007",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					amount: "100",
+					cursor: "100,00000001-0000-0001-0000-000000000001",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
+			deepEqual(toSorted(first3, { column: "amount", order: "asc" }), first3);
+		});
+
+		await it("when called getting second page", async () => {
+			const first3 = await query({
+				sql,
+				options: {
+					tableName,
+					pagination: undefined,
+					orderBy: { column: "amount", order: "asc" },
+				},
+				extraField: "amount",
+			});
+
+			const first3Sorted = toSorted(first3, {
+				column: "amount",
+				order: "asc",
+			});
+
+			const lastCursor = first3Sorted.at(-1)?.cursor ?? "";
+
+			const next3 = await query({
+				sql,
+				options: {
+					tableName,
+					pagination: { after: lastCursor },
+					orderBy: { column: "amount", order: "asc" },
+				},
+				extraField: "amount",
+			});
+
+			deepEqual(next3, [
+				{
+					amount: "50",
+					cursor: "50,00000001-0000-0003-0000-000000000003",
+					hasNextPage: true,
+					hasPreviousPage: false,
+				},
+				{
+					amount: "75",
+					cursor: "75,00000001-0000-0007-0000-000000000007",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					amount: "125",
+					cursor: "125,00000001-0000-0009-0000-000000000009",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
+		});
+	});
+
+	await describe("given order by date field (created_at), asc", async () => {
+		let sql: postgres.Sql;
+		let tableName: string;
+
+		before(async () => {
+			sql = getClient();
+			tableName = "data-postgres-date-ordering-asc";
+			await paginationTestDataWithDate<
+				postgres.Fragment,
+				postgres.Helper<string, []>
+			>({
+				sql,
+				tableName: sql(tableName),
+			});
+		});
+
+		after(async () => {
+			await sql.end();
+		});
+
+		await it("when called getting first page", async () => {
+			const first3 = await query({
+				sql,
+				options: {
+					tableName,
+					pagination: undefined,
+					orderBy: { column: "created_at", order: "asc" },
+				},
+				extraField: "created_at",
+			});
+
+			deepEqual(first3, [
+				{
+					created_at: new Date("2025-05-09T10:11:00.000Z"),
+					cursor: "2025-05-09 10:11:00+00,00000001-0000-0001-0000-000000000001",
+					hasNextPage: true,
+					hasPreviousPage: false,
+				},
+				{
+					created_at: new Date("2025-05-09T10:11:01.000Z"),
+					cursor: "2025-05-09 10:11:01+00,00000001-0000-0002-0000-000000000002",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					created_at: new Date("2025-05-09T10:11:02.000Z"),
+					cursor: "2025-05-09 10:11:02+00,00000001-0000-0003-0000-000000000003",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
+		});
+
+		await it("when called getting second page", async () => {
+			const first3 = await query({
+				sql,
+				options: {
+					tableName,
+					pagination: undefined,
+					orderBy: { column: "created_at", order: "asc" },
+				},
+				extraField: "created_at",
+			});
+
+			const first3Sorted = toSorted(first3, {
+				column: "created_at",
+				order: "asc",
+			});
+
+			const next3 = await query({
+				sql,
+				options: {
+					tableName,
+					pagination: { after: first3Sorted.at(2)?.cursor ?? "" },
+					orderBy: { column: "created_at", order: "asc" },
+				},
+				extraField: "created_at",
+			});
+
+			deepEqual(next3, [
+				{
+					created_at: new Date("2025-05-09T10:11:03.000Z"),
+					cursor: "2025-05-09 10:11:03+00,00000001-0000-0004-0000-000000000004",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					created_at: new Date("2025-05-09T10:11:04.000Z"),
+					cursor: "2025-05-09 10:11:04+00,00000001-0000-0005-0000-000000000005",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					created_at: new Date("2025-05-09T10:11:05.000Z"),
+					cursor: "2025-05-09 10:11:05+00,00000001-0000-0006-0000-000000000006",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
+		});
+	});
+
+	await describe("given order by numeric field (amount), desc", async () => {
+		let sql: postgres.Sql;
+		let tableName: string;
+
+		before(async () => {
+			sql = getClient();
+			tableName = "data-postgres-amount-ordering-desc";
+			await paginationTestDataWithAmount<
+				postgres.Fragment,
+				postgres.Helper<string, []>
+			>({
+				sql,
+				tableName: sql(tableName),
+			});
+		});
+
+		after(async () => {
+			await sql.end();
+		});
+
+		await it("when called getting first page", async () => {
+			const first3 = await query({
+				sql,
+				options: {
+					tableName,
+					pagination: undefined,
+					orderBy: { column: "amount", order: "desc" },
+				},
+				extraField: "amount",
+			});
+
+			deepEqual(first3, [
+				{
+					amount: "400",
+					cursor: "400,00000001-0000-0008-0000-000000000008",
+					hasNextPage: true,
+					hasPreviousPage: false,
+				},
+				{
+					amount: "300",
+					cursor: "300,00000001-0000-0004-0000-000000000004",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					amount: "250",
+					cursor: "250,00000001-0000-0006-0000-000000000006",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
+			deepEqual(toSorted(first3, { column: "amount", order: "desc" }), first3);
+		});
+
+		await it("when called getting second page", async () => {
+			const first3 = await query({
+				sql,
+				options: {
+					tableName,
+					pagination: undefined,
+					orderBy: { column: "amount", order: "desc" },
+				},
+				extraField: "amount",
+			});
+
+			const first3Sorted = toSorted(first3, {
+				column: "amount",
+				order: "desc",
+			});
+
+			const lastCursor = first3Sorted.at(-1)?.cursor ?? "";
+
+			const next3 = await query({
+				sql,
+				options: {
+					tableName,
+					pagination: { after: lastCursor },
+					orderBy: { column: "amount", order: "desc" },
+				},
+				extraField: "amount",
+			});
+
+			deepEqual(next3, [
+				{
+					amount: "200",
+					cursor: "200,00000001-0000-0002-0000-000000000002",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					amount: "150",
+					cursor: "150,00000001-0000-0005-0000-000000000005",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					amount: "125",
+					cursor: "125,00000001-0000-0009-0000-000000000009",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
+		});
+	});
+
+	await describe("given order by date field (created_at), desc", async () => {
+		let sql: postgres.Sql;
+		let tableName: string;
+
+		before(async () => {
+			sql = getClient();
+			tableName = "data-postgres-date-ordering-desc";
+			await paginationTestDataWithDate<
+				postgres.Fragment,
+				postgres.Helper<string, []>
+			>({
+				sql,
+				tableName: sql(tableName),
+			});
+		});
+
+		after(async () => {
+			await sql.end();
+		});
+
+		await it("when called getting first page", async () => {
+			const first3 = await query({
+				sql,
+				options: {
+					tableName,
+					pagination: undefined,
+					orderBy: { column: "created_at", order: "desc" },
+				},
+				extraField: "created_at",
+			});
+
+			deepEqual(first3, [
+				{
+					created_at: new Date("2025-05-09T10:11:08.000Z"),
+					cursor: "2025-05-09 10:11:08+00,00000001-0000-0009-0000-000000000009",
+					hasNextPage: true,
+					hasPreviousPage: false,
+				},
+				{
+					created_at: new Date("2025-05-09T10:11:07.000Z"),
+					cursor: "2025-05-09 10:11:07+00,00000001-0000-0008-0000-000000000008",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					created_at: new Date("2025-05-09T10:11:06.000Z"),
+					cursor: "2025-05-09 10:11:06+00,00000001-0000-0007-0000-000000000007",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
+		});
+
+		await it("when called getting second page", async () => {
+			const first3 = await query({
+				sql,
+				options: {
+					tableName,
+					pagination: undefined,
+					orderBy: { column: "created_at", order: "desc" },
+				},
+				extraField: "created_at",
+			});
+
+			const first3Sorted = toSorted(first3, {
+				column: "created_at",
+				order: "desc",
+			});
+
+			const next3 = await query({
+				sql,
+				options: {
+					tableName,
+					pagination: { after: first3Sorted.at(-1)?.cursor ?? "" },
+					orderBy: { column: "created_at", order: "desc" },
+				},
+				extraField: "created_at",
+			});
+
+			deepEqual(next3, [
+				{
+					created_at: new Date("2025-05-09T10:11:05.000Z"),
+					cursor: "2025-05-09 10:11:05+00,00000001-0000-0006-0000-000000000006",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					created_at: new Date("2025-05-09T10:11:04.000Z"),
+					cursor: "2025-05-09 10:11:04+00,00000001-0000-0005-0000-000000000005",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					created_at: new Date("2025-05-09T10:11:03.000Z"),
+					cursor: "2025-05-09 10:11:03+00,00000001-0000-0004-0000-000000000004",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+			]);
 		});
 	});
 });
