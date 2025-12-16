@@ -1,9 +1,32 @@
+export type Filter =
+	| {
+			left: string[];
+			operator: ">" | "<";
+			right: string[];
+	  }
+	| {
+			left: string[];
+			operator: "is null" | "is not null";
+	  };
+
+export interface Order {
+	column: string;
+	order: "asc" | "desc";
+}
 export interface PaginateResult {
 	cursor: string[];
-	filter: { left: string[]; operator: ">" | "<"; right: string[] } | undefined;
-	order: { column: string; order: "asc" | "desc" }[];
-	hasNextPage: Pick<PaginateResult, "filter" | "order">;
-	hasPreviousPage: Pick<PaginateResult, "filter" | "order">;
+	filter: Filter | undefined;
+	order: Order[];
+	hasNextPage: { filters: Filter[]; order: Order[] };
+	/**
+	 * Specific filter for the case where a specific order is asked, and it might be null
+	 */
+	hasNextPageNullColumn: { filters: Filter[]; order: Order[] } | undefined;
+	hasPreviousPage: { filters: Filter[]; order: Order[] };
+	/**
+	 * Specific filter for the case where a specific order is asked, and it might be null
+	 */
+	hasPreviousPageNullColumn: { filters: Filter[]; order: Order[] } | undefined;
 }
 
 type PageMode = "next-below" | "next-above";
@@ -68,7 +91,12 @@ export function paginate({
 		filter = { left: [tableId], operator: ">", right: [pagination.before] };
 	}
 
-	const { hasPreviousPage, hasNextPage } = getPagesExistence({
+	const {
+		hasPreviousPage,
+		hasNextPage,
+		hasPreviousPageNullColumn,
+		hasNextPageNullColumn,
+	} = getPagesExistence({
 		tableName,
 		orderByColumn: orderBy?.column,
 		pageMode,
@@ -81,6 +109,8 @@ export function paginate({
 		order,
 		hasPreviousPage,
 		hasNextPage,
+		hasNextPageNullColumn,
+		hasPreviousPageNullColumn,
 	};
 }
 
@@ -219,7 +249,13 @@ function getPagesExistence({
 	orderByColumn?: string | undefined;
 	pageMode: PageMode;
 	order: PaginateResult["order"];
-}): Pick<PaginateResult, "hasNextPage" | "hasPreviousPage"> {
+}): Pick<
+	PaginateResult,
+	| "hasNextPage"
+	| "hasPreviousPage"
+	| "hasNextPageNullColumn"
+	| "hasPreviousPageNullColumn"
+> {
 	const pageId = "subquery.id";
 	const tableId = `${tableName}.id`;
 	const pageColumn = orderByColumn ? `subquery.${orderByColumn}` : undefined;
@@ -235,36 +271,86 @@ function getPagesExistence({
 		order,
 	}));
 
+	const hasPreviousPage = {
+		filters:
+			pageColumn !== undefined && tableColumn !== undefined
+				? [
+						{
+							left: [pageColumn, pageId],
+							operator: previousOperator,
+							right: [tableColumn, tableId],
+						},
+					]
+				: [
+						{
+							left: [pageId],
+							operator: previousOperator,
+							right: [tableId],
+						},
+					],
+		order: orderOnSubquery,
+	} satisfies { filters: Filter[]; order: Order[] };
+
+	const hasNextPage = {
+		filters:
+			pageColumn !== undefined && tableColumn !== undefined
+				? [
+						{
+							left: [pageColumn, pageId],
+							operator: nextOperator,
+							right: [tableColumn, tableId],
+						},
+					]
+				: [
+						{
+							left: [pageId],
+							operator: nextOperator,
+							right: [tableId],
+						},
+					],
+		order: orderOnSubquery,
+	} satisfies { filters: Filter[]; order: Order[] };
+
+	const hasPreviousPageNullColumn =
+		pageColumn !== undefined && tableColumn !== undefined
+			? ({
+					filters: [
+						{
+							left: [pageId],
+							operator: previousOperator,
+							right: [tableId],
+						},
+						{
+							left: [pageColumn],
+							operator: "is null",
+						},
+					],
+					order: orderOnSubquery,
+				} satisfies { filters: Filter[]; order: Order[] })
+			: undefined;
+
+	const hasNextPageNullColumn =
+		pageColumn !== undefined && tableColumn !== undefined
+			? ({
+					filters: [
+						{
+							left: [pageId],
+							operator: nextOperator,
+							right: [tableId],
+						},
+						{
+							left: [pageColumn],
+							operator: "is null",
+						},
+					],
+					order: orderOnSubquery,
+				} satisfies { filters: Filter[]; order: Order[] })
+			: undefined;
+
 	return {
-		hasPreviousPage: {
-			filter:
-				pageColumn !== undefined && tableColumn !== undefined
-					? {
-							left: [pageColumn, pageId],
-							operator: previousOperator,
-							right: [tableColumn, tableId],
-						}
-					: {
-							left: [pageId],
-							operator: previousOperator,
-							right: [tableId],
-						},
-			order: orderOnSubquery,
-		},
-		hasNextPage: {
-			filter:
-				pageColumn !== undefined && tableColumn !== undefined
-					? {
-							left: [pageColumn, pageId],
-							operator: nextOperator,
-							right: [tableColumn, tableId],
-						}
-					: {
-							left: [pageId],
-							operator: nextOperator,
-							right: [tableId],
-						},
-			order: orderOnSubquery,
-		},
+		hasNextPage,
+		hasPreviousPage,
+		hasNextPageNullColumn,
+		hasPreviousPageNullColumn,
 	};
 }

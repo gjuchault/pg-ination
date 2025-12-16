@@ -15,21 +15,27 @@ await describe("paginate()", async () => {
 					cursor: ["data.id"],
 					filter: undefined,
 					hasNextPage: {
-						filter: {
-							left: ["subquery.id"],
-							operator: "<",
-							right: ["data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: "<",
+								right: ["data.id"],
+							},
+						],
 						order: [{ column: "id", order: "desc" }],
 					},
 					hasPreviousPage: {
-						filter: {
-							left: ["subquery.id"],
-							operator: ">",
-							right: ["data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: ">",
+								right: ["data.id"],
+							},
+						],
 						order: [{ column: "id", order: "desc" }],
 					},
+					hasNextPageNullColumn: undefined,
+					hasPreviousPageNullColumn: undefined,
 					order: [{ column: "id", order: "desc" }],
 				},
 			);
@@ -50,21 +56,27 @@ await describe("paginate()", async () => {
 						right: ["00000001-0000-0009-0000-000000000009"],
 					},
 					hasNextPage: {
-						filter: {
-							left: ["subquery.id"],
-							operator: "<",
-							right: ["data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: "<",
+								right: ["data.id"],
+							},
+						],
 						order: [{ column: "id", order: "desc" }],
 					},
 					hasPreviousPage: {
-						filter: {
-							left: ["subquery.id"],
-							operator: ">",
-							right: ["data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: ">",
+								right: ["data.id"],
+							},
+						],
 						order: [{ column: "id", order: "desc" }],
 					},
+					hasNextPageNullColumn: undefined,
+					hasPreviousPageNullColumn: undefined,
 					order: [
 						{
 							column: "id",
@@ -90,21 +102,27 @@ await describe("paginate()", async () => {
 						right: ["00000001-0000-0009-0000-000000000009"],
 					},
 					hasNextPage: {
-						filter: {
-							left: ["subquery.id"],
-							operator: "<",
-							right: ["data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: "<",
+								right: ["data.id"],
+							},
+						],
 						order: [{ column: "id", order: "asc" }],
 					},
 					hasPreviousPage: {
-						filter: {
-							left: ["subquery.id"],
-							operator: ">",
-							right: ["data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: ">",
+								right: ["data.id"],
+							},
+						],
 						order: [{ column: "id", order: "asc" }],
 					},
+					hasNextPageNullColumn: undefined,
+					hasPreviousPageNullColumn: undefined,
 					order: [{ column: "id", order: "asc" }],
 				},
 			);
@@ -123,11 +141,36 @@ await describe("paginate()", async () => {
 					cursor: ["data.name", "data.id"],
 					filter: undefined,
 					hasNextPage: {
-						filter: {
-							left: ["subquery.name", "subquery.id"],
-							operator: ">",
-							right: ["data.name", "data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.name", "subquery.id"],
+								operator: ">",
+								right: ["data.name", "data.id"],
+							},
+						],
+						order: [
+							{
+								column: "subquery.name",
+								order: "asc",
+							},
+							{
+								column: "subquery.id",
+								order: "asc",
+							},
+						],
+					},
+					hasNextPageNullColumn: {
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: ">",
+								right: ["data.id"],
+							},
+							{
+								left: ["subquery.name"],
+								operator: "is null",
+							},
+						],
 						order: [
 							{
 								column: "subquery.name",
@@ -140,11 +183,36 @@ await describe("paginate()", async () => {
 						],
 					},
 					hasPreviousPage: {
-						filter: {
-							left: ["subquery.name", "subquery.id"],
-							operator: "<",
-							right: ["data.name", "data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.name", "subquery.id"],
+								operator: "<",
+								right: ["data.name", "data.id"],
+							},
+						],
+						order: [
+							{
+								column: "subquery.name",
+								order: "asc",
+							},
+							{
+								column: "subquery.id",
+								order: "asc",
+							},
+						],
+					},
+					hasPreviousPageNullColumn: {
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: "<",
+								right: ["data.id"],
+							},
+							{
+								left: ["subquery.name"],
+								operator: "is null",
+							},
+						],
 						order: [
 							{
 								column: "subquery.name",
@@ -185,11 +253,13 @@ await describe("paginate()", async () => {
 						right: ["CCCC", "00000001-0000-0009-0000-000000000009"],
 					},
 					hasNextPage: {
-						filter: {
-							left: ["subquery.name", "subquery.id"],
-							operator: ">",
-							right: ["data.name", "data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.name", "subquery.id"],
+								operator: ">",
+								right: ["data.name", "data.id"],
+							},
+						],
 						order: [
 							{
 								column: "subquery.name",
@@ -202,11 +272,59 @@ await describe("paginate()", async () => {
 						],
 					},
 					hasPreviousPage: {
-						filter: {
-							left: ["subquery.name", "subquery.id"],
-							operator: "<",
-							right: ["data.name", "data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.name", "subquery.id"],
+								operator: "<",
+								right: ["data.name", "data.id"],
+							},
+						],
+						order: [
+							{
+								column: "subquery.name",
+								order: "asc",
+							},
+							{
+								column: "subquery.id",
+								order: "asc",
+							},
+						],
+					},
+					hasNextPageNullColumn: {
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: ">",
+								right: ["data.id"],
+							},
+							{
+								left: ["subquery.name"],
+								operator: "is null",
+							},
+						],
+						order: [
+							{
+								column: "subquery.name",
+								order: "asc",
+							},
+							{
+								column: "subquery.id",
+								order: "asc",
+							},
+						],
+					},
+					hasPreviousPageNullColumn: {
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: "<",
+								right: ["data.id"],
+							},
+							{
+								left: ["subquery.name"],
+								operator: "is null",
+							},
+						],
 						order: [
 							{
 								column: "subquery.name",
@@ -247,11 +365,36 @@ await describe("paginate()", async () => {
 						right: ["CCCC", "00000001-0000-0009-0000-000000000009"],
 					},
 					hasNextPage: {
-						filter: {
-							left: ["subquery.name", "subquery.id"],
-							operator: ">",
-							right: ["data.name", "data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.name", "subquery.id"],
+								operator: ">",
+								right: ["data.name", "data.id"],
+							},
+						],
+						order: [
+							{
+								column: "subquery.name",
+								order: "desc",
+							},
+							{
+								column: "subquery.id",
+								order: "desc",
+							},
+						],
+					},
+					hasNextPageNullColumn: {
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: ">",
+								right: ["data.id"],
+							},
+							{
+								left: ["subquery.name"],
+								operator: "is null",
+							},
+						],
 						order: [
 							{
 								column: "subquery.name",
@@ -264,11 +407,36 @@ await describe("paginate()", async () => {
 						],
 					},
 					hasPreviousPage: {
-						filter: {
-							left: ["subquery.name", "subquery.id"],
-							operator: "<",
-							right: ["data.name", "data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.name", "subquery.id"],
+								operator: "<",
+								right: ["data.name", "data.id"],
+							},
+						],
+						order: [
+							{
+								column: "subquery.name",
+								order: "desc",
+							},
+							{
+								column: "subquery.id",
+								order: "desc",
+							},
+						],
+					},
+					hasPreviousPageNullColumn: {
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: "<",
+								right: ["data.id"],
+							},
+							{
+								left: ["subquery.name"],
+								operator: "is null",
+							},
+						],
 						order: [
 							{
 								column: "subquery.name",
@@ -308,11 +476,36 @@ await describe("paginate()", async () => {
 					right: ["", "00000001-0000-0009-0000-000000000009"],
 				},
 				hasNextPage: {
-					filter: {
-						left: ["subquery.name", "subquery.id"],
-						operator: ">",
-						right: ["data.name", "data.id"],
-					},
+					filters: [
+						{
+							left: ["subquery.name", "subquery.id"],
+							operator: ">",
+							right: ["data.name", "data.id"],
+						},
+					],
+					order: [
+						{
+							column: "subquery.name",
+							order: "desc",
+						},
+						{
+							column: "subquery.id",
+							order: "desc",
+						},
+					],
+				},
+				hasNextPageNullColumn: {
+					filters: [
+						{
+							left: ["subquery.id"],
+							operator: ">",
+							right: ["data.id"],
+						},
+						{
+							left: ["subquery.name"],
+							operator: "is null",
+						},
+					],
 					order: [
 						{
 							column: "subquery.name",
@@ -325,11 +518,36 @@ await describe("paginate()", async () => {
 					],
 				},
 				hasPreviousPage: {
-					filter: {
-						left: ["subquery.name", "subquery.id"],
-						operator: "<",
-						right: ["data.name", "data.id"],
-					},
+					filters: [
+						{
+							left: ["subquery.name", "subquery.id"],
+							operator: "<",
+							right: ["data.name", "data.id"],
+						},
+					],
+					order: [
+						{
+							column: "subquery.name",
+							order: "desc",
+						},
+						{
+							column: "subquery.id",
+							order: "desc",
+						},
+					],
+				},
+				hasPreviousPageNullColumn: {
+					filters: [
+						{
+							left: ["subquery.id"],
+							operator: "<",
+							right: ["data.id"],
+						},
+						{
+							left: ["subquery.name"],
+							operator: "is null",
+						},
+					],
 					order: [
 						{
 							column: "subquery.name",
@@ -367,11 +585,13 @@ await describe("paginate()", async () => {
 					cursor: ["data.name", "data.id"],
 					filter: undefined,
 					hasNextPage: {
-						filter: {
-							left: ["subquery.name", "subquery.id"],
-							operator: "<",
-							right: ["data.name", "data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.name", "subquery.id"],
+								operator: "<",
+								right: ["data.name", "data.id"],
+							},
+						],
 						order: [
 							{
 								column: "subquery.name",
@@ -384,11 +604,59 @@ await describe("paginate()", async () => {
 						],
 					},
 					hasPreviousPage: {
-						filter: {
-							left: ["subquery.name", "subquery.id"],
-							operator: ">",
-							right: ["data.name", "data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.name", "subquery.id"],
+								operator: ">",
+								right: ["data.name", "data.id"],
+							},
+						],
+						order: [
+							{
+								column: "subquery.name",
+								order: "desc",
+							},
+							{
+								column: "subquery.id",
+								order: "desc",
+							},
+						],
+					},
+					hasNextPageNullColumn: {
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: "<",
+								right: ["data.id"],
+							},
+							{
+								left: ["subquery.name"],
+								operator: "is null",
+							},
+						],
+						order: [
+							{
+								column: "subquery.name",
+								order: "desc",
+							},
+							{
+								column: "subquery.id",
+								order: "desc",
+							},
+						],
+					},
+					hasPreviousPageNullColumn: {
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: ">",
+								right: ["data.id"],
+							},
+							{
+								left: ["subquery.name"],
+								operator: "is null",
+							},
+						],
 						order: [
 							{
 								column: "subquery.name",
@@ -429,11 +697,36 @@ await describe("paginate()", async () => {
 						right: ["CCCC", "00000001-0000-0009-0000-000000000009"],
 					},
 					hasNextPage: {
-						filter: {
-							left: ["subquery.name", "subquery.id"],
-							operator: "<",
-							right: ["data.name", "data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.name", "subquery.id"],
+								operator: "<",
+								right: ["data.name", "data.id"],
+							},
+						],
+						order: [
+							{
+								column: "subquery.name",
+								order: "desc",
+							},
+							{
+								column: "subquery.id",
+								order: "desc",
+							},
+						],
+					},
+					hasNextPageNullColumn: {
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: "<",
+								right: ["data.id"],
+							},
+							{
+								left: ["subquery.name"],
+								operator: "is null",
+							},
+						],
 						order: [
 							{
 								column: "subquery.name",
@@ -446,11 +739,36 @@ await describe("paginate()", async () => {
 						],
 					},
 					hasPreviousPage: {
-						filter: {
-							left: ["subquery.name", "subquery.id"],
-							operator: ">",
-							right: ["data.name", "data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.name", "subquery.id"],
+								operator: ">",
+								right: ["data.name", "data.id"],
+							},
+						],
+						order: [
+							{
+								column: "subquery.name",
+								order: "desc",
+							},
+							{
+								column: "subquery.id",
+								order: "desc",
+							},
+						],
+					},
+					hasPreviousPageNullColumn: {
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: ">",
+								right: ["data.id"],
+							},
+							{
+								left: ["subquery.name"],
+								operator: "is null",
+							},
+						],
 						order: [
 							{
 								column: "subquery.name",
@@ -491,11 +809,13 @@ await describe("paginate()", async () => {
 						right: ["CCCC", "00000001-0000-0009-0000-000000000009"],
 					},
 					hasNextPage: {
-						filter: {
-							left: ["subquery.name", "subquery.id"],
-							operator: "<",
-							right: ["data.name", "data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.name", "subquery.id"],
+								operator: "<",
+								right: ["data.name", "data.id"],
+							},
+						],
 						order: [
 							{
 								column: "subquery.name",
@@ -508,11 +828,59 @@ await describe("paginate()", async () => {
 						],
 					},
 					hasPreviousPage: {
-						filter: {
-							left: ["subquery.name", "subquery.id"],
-							operator: ">",
-							right: ["data.name", "data.id"],
-						},
+						filters: [
+							{
+								left: ["subquery.name", "subquery.id"],
+								operator: ">",
+								right: ["data.name", "data.id"],
+							},
+						],
+						order: [
+							{
+								column: "subquery.name",
+								order: "asc",
+							},
+							{
+								column: "subquery.id",
+								order: "asc",
+							},
+						],
+					},
+					hasNextPageNullColumn: {
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: "<",
+								right: ["data.id"],
+							},
+							{
+								left: ["subquery.name"],
+								operator: "is null",
+							},
+						],
+						order: [
+							{
+								column: "subquery.name",
+								order: "asc",
+							},
+							{
+								column: "subquery.id",
+								order: "asc",
+							},
+						],
+					},
+					hasPreviousPageNullColumn: {
+						filters: [
+							{
+								left: ["subquery.id"],
+								operator: ">",
+								right: ["data.id"],
+							},
+							{
+								left: ["subquery.name"],
+								operator: "is null",
+							},
+						],
 						order: [
 							{
 								column: "subquery.name",
