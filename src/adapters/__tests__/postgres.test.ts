@@ -734,7 +734,7 @@ await describe("postgresAdapter", async () => {
 				options: {
 					tableName,
 					pagination: undefined,
-					orderBy: { column: "amount", order: "asc" },
+					orderBy: { column: "amount", order: "asc", type: "numeric" },
 				},
 				extraField: "amount",
 			});
@@ -751,27 +751,27 @@ await describe("postgresAdapter", async () => {
 				options: {
 					tableName,
 					pagination: { after: lastCursor },
-					orderBy: { column: "amount", order: "asc" },
+					orderBy: { column: "amount", order: "asc", type: "numeric" },
 				},
 				extraField: "amount",
 			});
 
 			deepEqual(next3, [
 				{
-					amount: "50",
-					cursor: "50,00000001-0000-0003-0000-000000000003",
-					hasNextPage: true,
-					hasPreviousPage: false,
-				},
-				{
-					amount: "75",
-					cursor: "75,00000001-0000-0007-0000-000000000007",
+					amount: "125",
+					cursor: "125,00000001-0000-0009-0000-000000000009",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
 				{
-					amount: "125",
-					cursor: "125,00000001-0000-0009-0000-000000000009",
+					amount: "150",
+					cursor: "150,00000001-0000-0005-0000-000000000005",
+					hasNextPage: true,
+					hasPreviousPage: true,
+				},
+				{
+					amount: "200",
+					cursor: "200,00000001-0000-0002-0000-000000000002",
 					hasNextPage: true,
 					hasPreviousPage: true,
 				},
@@ -838,7 +838,7 @@ await describe("postgresAdapter", async () => {
 				options: {
 					tableName,
 					pagination: undefined,
-					orderBy: { column: "created_at", order: "asc" },
+					orderBy: { column: "created_at", order: "asc", type: "timestamp" },
 				},
 				extraField: "created_at",
 			});
@@ -853,7 +853,7 @@ await describe("postgresAdapter", async () => {
 				options: {
 					tableName,
 					pagination: { after: first3Sorted.at(2)?.cursor ?? "" },
-					orderBy: { column: "created_at", order: "asc" },
+					orderBy: { column: "created_at", order: "asc", type: "timestamp" },
 				},
 				extraField: "created_at",
 			});
@@ -941,7 +941,7 @@ await describe("postgresAdapter", async () => {
 				options: {
 					tableName,
 					pagination: undefined,
-					orderBy: { column: "amount", order: "desc" },
+					orderBy: { column: "amount", order: "desc", type: "numeric" },
 				},
 				extraField: "amount",
 			});
@@ -958,7 +958,7 @@ await describe("postgresAdapter", async () => {
 				options: {
 					tableName,
 					pagination: { after: lastCursor },
-					orderBy: { column: "amount", order: "desc" },
+					orderBy: { column: "amount", order: "desc", type: "numeric" },
 				},
 				extraField: "amount",
 			});
@@ -1045,7 +1045,7 @@ await describe("postgresAdapter", async () => {
 				options: {
 					tableName,
 					pagination: undefined,
-					orderBy: { column: "created_at", order: "desc" },
+					orderBy: { column: "created_at", order: "desc", type: "timestamp" },
 				},
 				extraField: "created_at",
 			});
@@ -1060,7 +1060,7 @@ await describe("postgresAdapter", async () => {
 				options: {
 					tableName,
 					pagination: { after: first3Sorted.at(-1)?.cursor ?? "" },
-					orderBy: { column: "created_at", order: "desc" },
+					orderBy: { column: "created_at", order: "desc", type: "timestamp" },
 				},
 				extraField: "created_at",
 			});

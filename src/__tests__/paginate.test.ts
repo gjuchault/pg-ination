@@ -22,7 +22,7 @@ await describe("paginate()", async () => {
 								right: ["data.id"],
 							},
 						],
-						order: [{ column: "id", order: "desc" }],
+						order: [{ column: "id", order: "desc", type: "text" }],
 					},
 					hasPreviousPage: {
 						filters: [
@@ -32,11 +32,11 @@ await describe("paginate()", async () => {
 								right: ["data.id"],
 							},
 						],
-						order: [{ column: "id", order: "desc" }],
+						order: [{ column: "id", order: "desc", type: "text" }],
 					},
 					hasNextPageNullColumn: undefined,
 					hasPreviousPageNullColumn: undefined,
-					order: [{ column: "id", order: "desc" }],
+					order: [{ column: "id", order: "desc", type: "text" }],
 				},
 			);
 		});
@@ -63,7 +63,7 @@ await describe("paginate()", async () => {
 								right: ["data.id"],
 							},
 						],
-						order: [{ column: "id", order: "desc" }],
+						order: [{ column: "id", order: "desc", type: "text" }],
 					},
 					hasPreviousPage: {
 						filters: [
@@ -73,7 +73,7 @@ await describe("paginate()", async () => {
 								right: ["data.id"],
 							},
 						],
-						order: [{ column: "id", order: "desc" }],
+						order: [{ column: "id", order: "desc", type: "text" }],
 					},
 					hasNextPageNullColumn: undefined,
 					hasPreviousPageNullColumn: undefined,
@@ -81,6 +81,7 @@ await describe("paginate()", async () => {
 						{
 							column: "id",
 							order: "desc",
+							type: "text",
 						},
 					],
 				},
@@ -109,7 +110,7 @@ await describe("paginate()", async () => {
 								right: ["data.id"],
 							},
 						],
-						order: [{ column: "id", order: "asc" }],
+						order: [{ column: "id", order: "asc", type: "text" }],
 					},
 					hasPreviousPage: {
 						filters: [
@@ -119,11 +120,11 @@ await describe("paginate()", async () => {
 								right: ["data.id"],
 							},
 						],
-						order: [{ column: "id", order: "asc" }],
+						order: [{ column: "id", order: "asc", type: "text" }],
 					},
 					hasNextPageNullColumn: undefined,
 					hasPreviousPageNullColumn: undefined,
-					order: [{ column: "id", order: "asc" }],
+					order: [{ column: "id", order: "asc", type: "text" }],
 				},
 			);
 		});
@@ -134,7 +135,7 @@ await describe("paginate()", async () => {
 			deepEqual(
 				paginate({
 					tableName: "data",
-					orderBy: { column: "name", order: "asc" },
+					orderBy: { column: "name", order: "asc", type: "text" },
 					pagination: undefined,
 				}),
 				{
@@ -152,10 +153,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "asc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "asc",
+								type: "text",
 							},
 						],
 					},
@@ -175,10 +178,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "asc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "asc",
+								type: "text",
 							},
 						],
 					},
@@ -194,10 +199,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "asc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "asc",
+								type: "text",
 							},
 						],
 					},
@@ -217,10 +224,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "asc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "asc",
+								type: "text",
 							},
 						],
 					},
@@ -228,10 +237,12 @@ await describe("paginate()", async () => {
 						{
 							column: "data.name",
 							order: "asc",
+							type: "text",
 						},
 						{
 							column: "data.id",
 							order: "asc",
+							type: "text",
 						},
 					],
 				},
@@ -242,7 +253,7 @@ await describe("paginate()", async () => {
 			deepEqual(
 				paginate({
 					tableName: "data",
-					orderBy: { column: "name", order: "asc" },
+					orderBy: { column: "name", order: "asc", type: "text" },
 					pagination: { after: "CCCC,00000001-0000-0009-0000-000000000009" },
 				}),
 				{
@@ -264,10 +275,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "asc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "asc",
+								type: "text",
 							},
 						],
 					},
@@ -283,10 +296,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "asc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "asc",
+								type: "text",
 							},
 						],
 					},
@@ -306,10 +321,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "asc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "asc",
+								type: "text",
 							},
 						],
 					},
@@ -329,10 +346,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "asc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "asc",
+								type: "text",
 							},
 						],
 					},
@@ -340,10 +359,12 @@ await describe("paginate()", async () => {
 						{
 							column: "data.name",
 							order: "asc",
+							type: "text",
 						},
 						{
 							column: "data.id",
 							order: "asc",
+							type: "text",
 						},
 					],
 				},
@@ -354,7 +375,7 @@ await describe("paginate()", async () => {
 			deepEqual(
 				paginate({
 					tableName: "data",
-					orderBy: { column: "name", order: "asc" },
+					orderBy: { column: "name", order: "asc", type: "text" },
 					pagination: { before: "CCCC,00000001-0000-0009-0000-000000000009" },
 				}),
 				{
@@ -376,10 +397,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "desc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "desc",
+								type: "text",
 							},
 						],
 					},
@@ -399,10 +422,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "desc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "desc",
+								type: "text",
 							},
 						],
 					},
@@ -418,10 +443,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "desc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "desc",
+								type: "text",
 							},
 						],
 					},
@@ -441,10 +468,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "desc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "desc",
+								type: "text",
 							},
 						],
 					},
@@ -452,10 +481,12 @@ await describe("paginate()", async () => {
 						{
 							column: "data.name",
 							order: "desc",
+							type: "text",
 						},
 						{
 							column: "data.id",
 							order: "desc",
+							type: "text",
 						},
 					],
 				},
@@ -465,7 +496,7 @@ await describe("paginate()", async () => {
 		await test("when called with an invalid cursor", () => {
 			const foo = paginate({
 				tableName: "data",
-				orderBy: { column: "name", order: "asc" },
+				orderBy: { column: "name", order: "asc", type: "text" },
 				pagination: { before: "00000001-0000-0009-0000-000000000009" },
 			});
 			deepEqual(foo, {
@@ -487,10 +518,12 @@ await describe("paginate()", async () => {
 						{
 							column: "subquery.name",
 							order: "desc",
+							type: "text",
 						},
 						{
 							column: "subquery.id",
 							order: "desc",
+							type: "text",
 						},
 					],
 				},
@@ -510,10 +543,12 @@ await describe("paginate()", async () => {
 						{
 							column: "subquery.name",
 							order: "desc",
+							type: "text",
 						},
 						{
 							column: "subquery.id",
 							order: "desc",
+							type: "text",
 						},
 					],
 				},
@@ -529,10 +564,12 @@ await describe("paginate()", async () => {
 						{
 							column: "subquery.name",
 							order: "desc",
+							type: "text",
 						},
 						{
 							column: "subquery.id",
 							order: "desc",
+							type: "text",
 						},
 					],
 				},
@@ -552,10 +589,12 @@ await describe("paginate()", async () => {
 						{
 							column: "subquery.name",
 							order: "desc",
+							type: "text",
 						},
 						{
 							column: "subquery.id",
 							order: "desc",
+							type: "text",
 						},
 					],
 				},
@@ -563,10 +602,12 @@ await describe("paginate()", async () => {
 					{
 						column: "data.name",
 						order: "desc",
+						type: "text",
 					},
 					{
 						column: "data.id",
 						order: "desc",
+						type: "text",
 					},
 				],
 			});
@@ -578,7 +619,7 @@ await describe("paginate()", async () => {
 			deepEqual(
 				paginate({
 					tableName: "data",
-					orderBy: { column: "name", order: "desc" },
+					orderBy: { column: "name", order: "desc", type: "text" },
 					pagination: undefined,
 				}),
 				{
@@ -596,10 +637,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "desc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "desc",
+								type: "text",
 							},
 						],
 					},
@@ -615,10 +658,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "desc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "desc",
+								type: "text",
 							},
 						],
 					},
@@ -638,10 +683,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "desc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "desc",
+								type: "text",
 							},
 						],
 					},
@@ -661,10 +708,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "desc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "desc",
+								type: "text",
 							},
 						],
 					},
@@ -672,10 +721,12 @@ await describe("paginate()", async () => {
 						{
 							column: "data.name",
 							order: "desc",
+							type: "text",
 						},
 						{
 							column: "data.id",
 							order: "desc",
+							type: "text",
 						},
 					],
 				},
@@ -686,7 +737,7 @@ await describe("paginate()", async () => {
 			deepEqual(
 				paginate({
 					tableName: "data",
-					orderBy: { column: "name", order: "desc" },
+					orderBy: { column: "name", order: "desc", type: "text" },
 					pagination: { after: "CCCC,00000001-0000-0009-0000-000000000009" },
 				}),
 				{
@@ -708,10 +759,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "desc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "desc",
+								type: "text",
 							},
 						],
 					},
@@ -731,10 +784,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "desc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "desc",
+								type: "text",
 							},
 						],
 					},
@@ -750,10 +805,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "desc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "desc",
+								type: "text",
 							},
 						],
 					},
@@ -773,10 +830,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "desc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "desc",
+								type: "text",
 							},
 						],
 					},
@@ -784,10 +843,12 @@ await describe("paginate()", async () => {
 						{
 							column: "data.name",
 							order: "desc",
+							type: "text",
 						},
 						{
 							column: "data.id",
 							order: "desc",
+							type: "text",
 						},
 					],
 				},
@@ -798,7 +859,7 @@ await describe("paginate()", async () => {
 			deepEqual(
 				paginate({
 					tableName: "data",
-					orderBy: { column: "name", order: "desc" },
+					orderBy: { column: "name", order: "desc", type: "text" },
 					pagination: { before: "CCCC,00000001-0000-0009-0000-000000000009" },
 				}),
 				{
@@ -820,10 +881,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "asc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "asc",
+								type: "text",
 							},
 						],
 					},
@@ -839,10 +902,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "asc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "asc",
+								type: "text",
 							},
 						],
 					},
@@ -862,10 +927,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "asc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "asc",
+								type: "text",
 							},
 						],
 					},
@@ -885,10 +952,12 @@ await describe("paginate()", async () => {
 							{
 								column: "subquery.name",
 								order: "asc",
+								type: "text",
 							},
 							{
 								column: "subquery.id",
 								order: "asc",
+								type: "text",
 							},
 						],
 					},
@@ -896,10 +965,12 @@ await describe("paginate()", async () => {
 						{
 							column: "data.name",
 							order: "asc",
+							type: "text",
 						},
 						{
 							column: "data.id",
 							order: "asc",
+							type: "text",
 						},
 					],
 				},

@@ -12,6 +12,7 @@ export type Filter =
 export interface Order {
 	column: string;
 	order: "asc" | "desc";
+	type?: "numeric" | "timestamp" | "text" | undefined;
 }
 export interface PaginateResult {
 	cursor: string[];
@@ -43,7 +44,13 @@ export interface PaginateOptions {
 	/**
 	 * the user ordering input, can be either column and order or undefined
 	 */
-	orderBy?: { column: string; order: "asc" | "desc" } | undefined;
+	orderBy?:
+		| {
+				column: string;
+				order: "asc" | "desc";
+				type?: "numeric" | "timestamp" | "text" | undefined;
+		  }
+		| undefined;
 }
 
 /**
@@ -63,7 +70,9 @@ export function paginate({
 
 	let filter: PaginateResult["filter"];
 	let cursor: PaginateResult["cursor"] = [tableId];
-	let order: PaginateResult["order"] = [{ column: "id", order: "desc" }];
+	let order: PaginateResult["order"] = [
+		{ column: "id", order: "desc", type: "text" },
+	];
 	let pageMode: PageMode = "next-below";
 
 	if (orderBy?.order === "asc") {
@@ -71,6 +80,7 @@ export function paginate({
 			tableName,
 			pagination,
 			orderByColumn: orderBy.column,
+			orderByType: orderBy.type ?? "text",
 			tableId,
 		}));
 	}
@@ -80,6 +90,7 @@ export function paginate({
 			tableName,
 			pagination,
 			orderByColumn: orderBy.column,
+			orderByType: orderBy.type ?? "text",
 			tableId,
 		}));
 	}
@@ -87,7 +98,7 @@ export function paginate({
 	if (orderBy === undefined && isAfter) {
 		filter = { left: [tableId], operator: "<", right: [pagination.after] };
 	} else if (orderBy === undefined && isBefore) {
-		order = [{ column: "id", order: "asc" }];
+		order = [{ column: "id", order: "asc", type: "text" }];
 		filter = { left: [tableId], operator: ">", right: [pagination.before] };
 	}
 
@@ -118,11 +129,13 @@ function handleDescendingOrder({
 	tableName,
 	pagination,
 	orderByColumn,
+	orderByType = "text",
 	tableId,
 }: {
 	tableName: string;
 	pagination?: { after: string } | { before: string } | undefined;
 	orderByColumn: string;
+	orderByType?: "numeric" | "timestamp" | "text";
 	tableId: string;
 }): Pick<PaginateResult, "cursor" | "filter" | "order"> & {
 	pageMode: PageMode;
@@ -135,8 +148,8 @@ function handleDescendingOrder({
 	const tableColumn = `${tableName}.${orderByColumn}`;
 	const cursor: PaginateResult["cursor"] = [tableColumn, tableId];
 	let order: PaginateResult["order"] = [
-		{ column: tableColumn, order: "desc" },
-		{ column: tableId, order: "desc" },
+		{ column: tableColumn, order: "desc", type: orderByType },
+		{ column: tableId, order: "desc", type: "text" },
 	];
 	const pageMode: PageMode = "next-below";
 
@@ -149,8 +162,8 @@ function handleDescendingOrder({
 		};
 	} else if (isBefore) {
 		order = [
-			{ column: tableColumn, order: "asc" },
-			{ column: tableId, order: "asc" },
+			{ column: tableColumn, order: "asc", type: orderByType },
+			{ column: tableId, order: "asc", type: "text" },
 		];
 
 		const { id, column } = getCursorComparator(pagination.before);
@@ -173,11 +186,13 @@ function handleAscendingOrder({
 	tableName,
 	pagination,
 	orderByColumn,
+	orderByType,
 	tableId,
 }: {
 	tableName: string;
 	pagination?: { after: string } | { before: string } | undefined;
 	orderByColumn: string;
+	orderByType: "numeric" | "text" | "timestamp";
 	tableId: string;
 }): Pick<PaginateResult, "cursor" | "filter" | "order"> & {
 	pageMode: PageMode;
@@ -190,8 +205,8 @@ function handleAscendingOrder({
 	const tableColumn = `${tableName}.${orderByColumn}`;
 	const cursor: PaginateResult["cursor"] = [tableColumn, tableId];
 	let order: PaginateResult["order"] = [
-		{ column: tableColumn, order: "asc" },
-		{ column: tableId, order: "asc" },
+		{ column: tableColumn, order: "asc", type: orderByType },
+		{ column: tableId, order: "asc", type: "text" },
 	];
 
 	const pageMode: PageMode = "next-above";
@@ -205,8 +220,8 @@ function handleAscendingOrder({
 		};
 	} else if (isBefore) {
 		order = [
-			{ column: tableColumn, order: "desc" },
-			{ column: tableId, order: "desc" },
+			{ column: tableColumn, order: "desc", type: orderByType },
+			{ column: tableId, order: "desc", type: "text" },
 		];
 		const { id, column } = getCursorComparator(pagination.before);
 		filter = {
@@ -266,9 +281,10 @@ function getPagesExistence({
 	const nextOperator = pageMode === "next-below" ? "<" : ">";
 	const previousOperator = pageMode === "next-below" ? ">" : "<";
 
-	const orderOnSubquery = order.map(({ column, order }) => ({
+	const orderOnSubquery = order.map(({ column, order, type }) => ({
 		column: column.replace(tableName, "subquery"),
 		order,
+		type: type ?? "text",
 	}));
 
 	const hasPreviousPage = {
