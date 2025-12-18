@@ -37,7 +37,16 @@ interface PaginateOptions<Sql, SqlIdentifier> {
   /**
    * the user ordering input, can be either column and order or undefined
    */
-  orderBy?: { column: string; order: "asc" | "desc" } | undefined;
+  orderBy?:
+    | {
+        column: string;
+        order: "asc" | "desc";
+        /**
+         * use this parameter if you sort by a numeric or a timestamp column as it would sort amounts and dates lexicographically otherwise
+         */
+        type?: "numeric" | "timestamp" | "text" | undefined;
+      }
+    | undefined;
 }
 ```
 
@@ -93,7 +102,7 @@ import { pgAdapter } from "pg-ination/adapters/pg";
 
 const options = {
   tableName: "foo",
-  orderBy: { column: "name", order: "desc" },
+  orderBy: { column: "name", order: "desc", type: "text" },
 };
 const paginateResult = paginate(options);
 const fragments = pgAdapter(options, paginateResult);
@@ -139,7 +148,7 @@ import { bunAdapter } from "pg-ination/adapters/bun";
 
 const options = {
   tableName: "foo",
-  orderBy: { column: "name", order: "desc" },
+  orderBy: { column: "name", order: "desc", type: "text" },
 };
 const paginateResult = paginate(options);
 const fragments = bunAdapter(options, paginateResult);
@@ -179,7 +188,7 @@ import { slonikAdapter } from "pg-ination/adapters/slonik";
 
 const options = {
   tableName: "foo",
-  orderBy: { column: "name", order: "desc" },
+  orderBy: { column: "name", order: "desc", type: "text" },
 };
 const paginateResult = paginate(options);
 const fragments = slonikAdapter(options, paginateResult);
@@ -219,7 +228,7 @@ import { postgresAdapter } from "pg-ination/adapters/postgres";
 
 const options = {
   tableName: "foo",
-  orderBy: { column: "name", order: "desc" },
+  orderBy: { column: "name", order: "desc", type: "text" },
 };
 const paginateResult = paginate(options);
 const fragments = postgresAdapter(options, paginateResult);
@@ -261,7 +270,7 @@ import { drizzleAdapter } from "pg-ination/adapters/drizzle";
 
 const options = {
   tableName: "foo",
-  orderBy: { column: "name", order: "desc" },
+  orderBy: { column: "name", order: "desc", type: "text" },
 };
 const paginateResult = paginate(options);
 const fragments = drizzleAdapter(options, paginateResult);
@@ -304,7 +313,7 @@ import { sqliteAdapter } from "pg-ination/adapters/sqlite";
 
 const options = {
   tableName: "foo",
-  orderBy: { column: "name", order: "desc" },
+  orderBy: { column: "name", order: "desc", type: "text" },
 };
 const paginateResult = paginate(options);
 const fragments = sqliteAdapter(options, paginateResult);
@@ -345,7 +354,7 @@ const previousPageCursor = users.at(0)?.cursor ?? undefined;
 const paginateOptions: PaginateOptions = {
   tableName: "table_sq",
   pagination,
-  orderBy: { column: "foo", order: "asc" },
+  orderBy: { column: "foo", order: "asc", type: "numeric" },
 };
 const paginateResult = paginate(paginateOptions);
 const adapterResult = xAdapter(paginateOptions, paginateResult);
