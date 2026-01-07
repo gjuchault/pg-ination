@@ -92,7 +92,7 @@
 		"esbuild": "^0.27.2",
 		"glob": "^13.0.0",
 		"is-main": "^0.4.0",
-		"postgres": "^3.4.7",
+		"postgres": "^3.4.8",
 		"pg": ">=8",
 		"rimraf": "^6.1.2",
 		"semantic-release": "^25.0.2",
