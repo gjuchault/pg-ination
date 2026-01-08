@@ -38,7 +38,7 @@
 	},
 	"license": "MIT",
 	"engines": {
-		"node": ">24"
+		"node": ">= 24"
 	},
 	"volta": {
 		"node": "25.2.1",
